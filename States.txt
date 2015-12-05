@@ -1,9 +1,13 @@
 /*
- *Format: ConnectionID - short description - format of data file.
+ *Format: ConnectionID - source - short description - format of data file.
  *
  *
  *
- * "0001" - Client sends a request to add a new user - data[connection, email, password];
- * "0002" - User with that Email adress already exists - data[connection];
- * "0003" - User has been added - data[connection];
+ * "0001" - Client - Sends a request to add a new user - data[connection, email, password];
+ * "0002" - Server - User with that Email adress already exists - data[connection];
+ * "0003" - Server - User has been added - data[connection];
+ * "0004" - Client - Send a request to login - data[connection, email, password];
+ * "0005" - Server - Wrong email - data[connection];
+ * "0006" - Server - Wrong password - data[connection];
+ * "0007" - Server - Connected - data[connection];
 */
