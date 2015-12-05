@@ -2,6 +2,10 @@
 #define LOGINWINDOW_H
 
 #include <QMainWindow>
+#include <QTcpSocket>
+#include <QtDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 namespace Ui {
 class LoginWindow;
@@ -15,8 +19,13 @@ public:
     explicit LoginWindow(QWidget *parent = 0);
     ~LoginWindow();
 
+private slots:
+    void on_RegisterButton_clicked();
+
 private:
     Ui::LoginWindow *ui;
+    QTcpSocket* m_Socket;
+
 };
 
 #endif // LOGINWINDOW_H

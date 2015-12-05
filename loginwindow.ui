@@ -28,7 +28,7 @@
     <item>
      <widget class="QLabel" name="PasswordLabel">
       <property name="text">
-       <string>Password</string>
+       <string>Password:</string>
       </property>
      </widget>
     </item>

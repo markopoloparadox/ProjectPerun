@@ -1,0 +1,9 @@
+/*
+ *Format: ConnectionID - short description - format of data file.
+ *
+ *
+ *
+ * "0001" - Client sends a request to add a new user - data[connection, email, password];
+ * "0002" - User with that Email adress already exists - data[connection];
+ * "0003" - User has been added - data[connection];
+*/
