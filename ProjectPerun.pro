@@ -15,13 +15,16 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         loginwindow.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    addfriend.cpp
 
 HEADERS  += loginwindow.h \
-    mainwindow.h
+    mainwindow.h \
+    addfriend.h
 
 FORMS    += loginwindow.ui \
-    mainwindow.ui
+    mainwindow.ui \
+    addfriend.ui
 
 RESOURCES += \
     resources.qrc

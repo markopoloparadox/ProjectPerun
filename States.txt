@@ -7,7 +7,13 @@
  * "0002" - Server - User with that Email adress already exists - data[connection];
  * "0003" - Server - User has been added - data[connection];
  * "0004" - Client - Send a request to login - data[connection, email, password];
- * "0005" - Server - Wrong email - data[connection];
+ * "0005" - Server - User not found - data[connection];
  * "0006" - Server - Wrong password - data[connection];
  * "0007" - Server - Connected - data[connection];
+ * "0008" - Client - Send an email to add as friend - data[connection, email];
+ * "0009" - Server - User has been added as friend - data[connection];
+ * "0010" - Server - User is already your friend - data[connection];
+ * "0011" - Client - Asks for list of friends - data[connection];
+ * "0012" - Server - Sends a list of all friends and their status - data[connection, friends[]];
+ * "0013" - Server - Sends a msg that you can't add yourself as friend - data[connection];
 */

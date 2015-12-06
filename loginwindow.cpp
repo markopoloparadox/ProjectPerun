@@ -76,12 +76,14 @@ void LoginWindow::on_LoginButton_clicked()
         return;
     }
 
-    m_Socket->connectToHost("127.0.0.1", 1337);
-    if(m_Socket->waitForConnected(1000))
-        qDebug() << "Connected!";;
-    if(m_Socket->state() == QAbstractSocket::UnconnectedState) {
-        ui->StatusLabel->setText("Server is offline!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+    if(!(m_Socket->state() == QAbstractSocket::ConnectedState)) {
+        m_Socket->connectToHost("127.0.0.1", 1337);
+        if(m_Socket->waitForConnected(1000))
+            qDebug() << "Connected!";;
+        if(m_Socket->state() == QAbstractSocket::UnconnectedState) {
+            ui->StatusLabel->setText("Server is offline!");
+            ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+        }
     }
 
     QJsonObject user;

@@ -1,1 +1,1 @@
-[{"m_email":"admin@admin","m_password":"admin"}]
+[{"email":"admin@admin","password":"admin","friends":[]},{"email":"test","password":"test","friends":["admin@admin"]}]

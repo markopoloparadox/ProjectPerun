@@ -6,6 +6,8 @@
 #include <QtDebug>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include "addfriend.h"
 
 namespace Ui {
 class MainWindow;
@@ -19,9 +21,15 @@ public:
     explicit MainWindow(QTcpSocket* socket, QWidget *parent = 0);
     ~MainWindow();
 
+private slots:
+
+    void on_AddFriendButton_clicked();
+
+    void on_RefreshFriendsButton_clicked();
+
 private:
-    Ui::MainWindow *ui;
     QTcpSocket* m_Socket;
+    Ui::MainWindow *ui;
 };
 
 #endif // MAINWINDOW_H
