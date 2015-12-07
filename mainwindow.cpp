@@ -7,6 +7,7 @@ MainWindow::MainWindow(QTcpSocket *socket, QWidget *parent) :
 {
     ui->setupUi(this);
     m_Socket = socket;
+    on_RefreshFriendsButton_clicked();
 }
 
 MainWindow::~MainWindow()
