@@ -7,7 +7,6 @@ LoginWindow::LoginWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     m_Socket = new QTcpSocket();
-    ui->StatusLabel->setText("No Status");
 }
 
 LoginWindow::~LoginWindow()

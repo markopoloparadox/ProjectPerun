@@ -6,6 +6,7 @@
 
 QT       += core gui
 QT += network
+CONFIG += c++14
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -16,15 +17,18 @@ TEMPLATE = app
 SOURCES += main.cpp\
         loginwindow.cpp \
     mainwindow.cpp \
-    addfriend.cpp
+    addfriend.cpp \
+    chatbox.cpp
 
 HEADERS  += loginwindow.h \
     mainwindow.h \
-    addfriend.h
+    addfriend.h \
+    chatbox.h
 
 FORMS    += loginwindow.ui \
     mainwindow.ui \
-    addfriend.ui
+    addfriend.ui \
+    chatbox.ui
 
 RESOURCES += \
     resources.qrc

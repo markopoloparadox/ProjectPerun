@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QTimer>
 #include "addfriend.h"
 
 namespace Ui {
@@ -26,6 +27,8 @@ private slots:
     void on_AddFriendButton_clicked();
 
     void on_RefreshFriendsButton_clicked();
+
+    void on_ChatButton_clicked();
 
 private:
     QTcpSocket* m_Socket;

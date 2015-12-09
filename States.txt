@@ -16,4 +16,5 @@
  * "0011" - Client - Asks for list of friends - data[connection];
  * "0012" - Server - Sends a list of all friends and their status - data[connection, friends[]];
  * "0013" - Server - Sends a msg that you can't add yourself as friend - data[connection];
+ * "0015" - Cleint - Sends a request to  - data[connection, email];
 */
