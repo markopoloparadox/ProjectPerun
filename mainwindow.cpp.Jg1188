@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-MainWindow::MainWindow(QTcpSocket *socket, qint16 port, QWidget *parent) :
+MainWindow::MainWindow(QTcpSocket *socket, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -12,8 +12,8 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, QWidget *parent) :
     connect(timer, SIGNAL(timeout()), this, SLOT(on_RefreshFriendsButton_clicked()));
     timer->start(1000);
     m_Server = new QTcpServer();
-    connect(m_Server, SIGNAL(newConnection()), this, SLOT(NewConnection()));
-    m_Server->listen(QHostAddress::Any, port);
+    connect(m_Server, SIGNAL(newConnection()), this, SIGNAL(Listen()));
+    m_Server->listen(QHostAddress::Any, 0);
 }
 
 MainWindow::~MainWindow()
@@ -21,17 +21,15 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::NewConnection() {
-    QTcpSocket* socket = m_Server->nextPendingConnection();
-    ChatBox* cBox = new ChatBox(socket);
-    cBox->show();
+void MainWindow::Listen() {
+    m_Server->listen(QHostAddress::Any, 0);
+    if(m_Server->waitForNewConnection());
 }
 
 void MainWindow::on_AddFriendButton_clicked()
 {
     AddFriend* addfrindbox = new AddFriend(m_Socket);
     addfrindbox->show();
-
 }
 
 void MainWindow::on_RefreshFriendsButton_clicked()
@@ -89,12 +87,14 @@ void MainWindow::on_ChatButton_clicked()
     object = QJsonDocument::fromJson(packet.constData());
     user = object.object();
 
+    qDebug() << user;
+
     if(user["connection"] == "0015") {
         ui->StatusLabel->setText("User is not online!");
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
         return ;
     } else if (user["connection"] == "0016") {
-        ChatBox* cBox = new ChatBox(nullptr, user["ip"].toString(), user["port"].toInt(),  user["clname"].toString(), ui->EmailLineEdit->text());
+        ChatBox* cBox = new ChatBox(nullptr, user["ip"].toString(), user["port"].toInt());
         cBox->show();
 
     }

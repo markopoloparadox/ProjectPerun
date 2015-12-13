@@ -84,11 +84,12 @@ void LoginWindow::on_LoginButton_clicked()
             ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
         }
     }
-
+    qint16 port = qrand() % 601 + 1400;
     QJsonObject user;
     user["connection"] = "0004";
     user["email"] = email;
     user["password"] = password;
+    user["port"] = port;
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
     m_Socket->write(packet);
@@ -107,7 +108,7 @@ void LoginWindow::on_LoginButton_clicked()
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
     }
     if(user["connection"] == "0007") {
-        MainWindow* mainWin = new MainWindow(m_Socket);
+        MainWindow* mainWin = new MainWindow(m_Socket, port);
         mainWin->show();
         this->close();
     }

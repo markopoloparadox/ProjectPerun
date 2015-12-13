@@ -51,11 +51,11 @@ function AddUserToDataBase(email, password, socket) {
     }
 }
 
-function LoginUser(email, password, socket) {
+function LoginUser(email, password, port, socket) {
 
     var users = ReadDatabase();
     var index = FindUserByEmail(users, email)
-                var post = new Object();
+    var post = new Object();
 
     if(index == -1) {
         post.connection = "0005";
@@ -77,6 +77,7 @@ function LoginUser(email, password, socket) {
             object.remotePort = socket.remotePort;
             object.status = "Online";
             object.index = index;
+            object.port = port;
 
             clients.push(object);
             console.log("LOGIN: " + socket.name);
@@ -165,6 +166,33 @@ function SendFriendsStatus(socket) {
     return;
 }
 
+
+function GetClientByEmail(email) {
+    for(var i = 0; i < clients.length; ++i)
+        if(clients[i].email == email)
+            return clients[i];
+    return 0;
+}
+
+function SendClientData(socket, email) {
+    var outClient = GetClientByEmail(email);
+    
+    var post = new Object();
+    if(outClient == 0) {
+        post.connection = "0015";
+        socket.write(JSON.stringify(post));
+        return;
+    }
+    
+    post.connection = "0016";
+    post.ip = outClient.remoteAddress;
+    post.port = outClient.port;
+    post.clname = socket.name;
+    socket.write(JSON.stringify(post));
+    console.log(post);
+    return;
+}
+
 var server = net.createServer(function(socket) {
 
     //Preponavanje klijenta
@@ -177,13 +205,16 @@ var server = net.createServer(function(socket) {
             AddUserToDataBase(data.email, data.password, socket);
 
         if(data.connection == "0004")
-            LoginUser(data.email, data.password, socket);
+            LoginUser(data.email, data.password, data.port, socket);
 
         if(data.connection == "0008")
             AddFriendUser(data.email, socket);
 
         if(data.connection == "0011")
             SendFriendsStatus(socket);
+        
+        if(data.connection == "0014")
+            SendClientData(socket, data.email);
     });
 
 

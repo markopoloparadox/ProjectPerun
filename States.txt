@@ -6,7 +6,7 @@
  * "0001" - Client - Sends a request to add a new user - data[connection, email, password];
  * "0002" - Server - User with that Email adress already exists - data[connection];
  * "0003" - Server - User has been added - data[connection];
- * "0004" - Client - Send a request to login - data[connection, email, password];
+ * "0004" - Client - Send a request to login - data[connection, email, password, port];
  * "0005" - Server - User not found - data[connection];
  * "0006" - Server - Wrong password - data[connection];
  * "0007" - Server - Connected - data[connection];
@@ -16,5 +16,9 @@
  * "0011" - Client - Asks for list of friends - data[connection];
  * "0012" - Server - Sends a list of all friends and their status - data[connection, friends[]];
  * "0013" - Server - Sends a msg that you can't add yourself as friend - data[connection];
- * "0015" - Cleint - Sends a request to  - data[connection, email];
+ * "0014" - Client - Sends a request to talk to a user - data[connection, email];
+ * "0015" - Server - User is not online - data[connection];
+ * "0016" - Server - User is online and ready to communicate - data[connection, ip, port, clname];
+ * "0017" - Client;Client - Send a msg - data[connection, msg];
+ * "0017" - Client;Client - Send other clients name - data[connection, icname, ocname];
 */
