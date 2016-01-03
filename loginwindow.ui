@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>151</width>
-    <height>211</height>
+    <height>247</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,6 +39,15 @@
      <widget class="QPushButton" name="LoginButton">
       <property name="text">
        <string>Login</string>
+      </property>
+      <property name="autoDefault">
+       <bool>false</bool>
+      </property>
+      <property name="default">
+       <bool>true</bool>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
       </property>
      </widget>
     </item>

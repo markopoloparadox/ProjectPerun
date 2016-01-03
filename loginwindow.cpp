@@ -8,6 +8,7 @@ LoginWindow::LoginWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     m_Socket = new QTcpSocket();
+    ui->PasswordLineEdit->setEchoMode(QLineEdit::Password); //hides entered characters while typing
 
     connect(ui->RegisterButton, SIGNAL(clicked()), this, SLOT(RegisterAnAccount()));
     connect(ui->LoginButton, SIGNAL(clicked()), this, SLOT(Login()));
@@ -178,4 +179,14 @@ void LoginWindow::Login() {
         mainWin->show();
         this->close();
     }
+}
+
+void LoginWindow::on_PasswordLineEdit_returnPressed()
+{
+    this->Login();
+}
+
+void LoginWindow::on_EmailLineEdit_returnPressed()
+{
+    this->Login();
 }

@@ -24,6 +24,10 @@ private slots:
     void RegisterAnAccount();
     void Login();
 
+    void on_PasswordLineEdit_returnPressed();
+
+    void on_EmailLineEdit_returnPressed();
+
 private:
     Ui::LoginWindow *ui;
     QTcpSocket* m_Socket;

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>406</width>
-    <height>327</height>
+    <width>520</width>
+    <height>334</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,27 +17,30 @@
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>381</width>
-      <height>271</height>
+      <x>30</x>
+      <y>30</y>
+      <width>481</width>
+      <height>261</height>
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>2</number>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
-      <string>Tab 1</string>
+      <string>Friends</string>
      </attribute>
      <widget class="QTableWidget" name="tableWidget">
       <property name="geometry">
        <rect>
-        <x>9</x>
+        <x>-1</x>
         <y>9</y>
-        <width>256</width>
+        <width>381</width>
         <height>192</height>
        </rect>
+      </property>
+      <property name="columnCount">
+       <number>3</number>
       </property>
       <column>
        <property name="text">
@@ -49,12 +52,17 @@
         <string>Status</string>
        </property>
       </column>
+      <column>
+       <property name="text">
+        <string>Game playing</string>
+       </property>
+      </column>
      </widget>
      <widget class="QPushButton" name="RefreshFriendsButton">
       <property name="geometry">
        <rect>
-        <x>270</x>
-        <y>40</y>
+        <x>389</x>
+        <y>41</y>
         <width>75</width>
         <height>23</height>
        </rect>
@@ -66,8 +74,8 @@
      <widget class="QPushButton" name="AddFriendButton">
       <property name="geometry">
        <rect>
-        <x>271</x>
-        <y>9</y>
+        <x>390</x>
+        <y>10</y>
         <width>75</width>
         <height>23</height>
        </rect>
@@ -79,7 +87,7 @@
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
-      <string>Tab 2</string>
+      <string>Chat</string>
      </attribute>
      <widget class="QLabel" name="StatusLabel">
       <property name="geometry">
@@ -120,9 +128,74 @@
     </widget>
     <widget class="QWidget" name="tab_3">
      <attribute name="title">
-      <string>Page</string>
+      <string>My games</string>
      </attribute>
+     <widget class="QListWidget" name="listWidget">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>31</y>
+        <width>451</width>
+        <height>171</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_2">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>291</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Double click on name of game you want to run:</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="refreshButton">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>200</y>
+        <width>93</width>
+        <height>28</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Refresh list</string>
+      </property>
+     </widget>
     </widget>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>91</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Current status:</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="currentStatusCBox">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>8</y>
+      <width>291</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="editable">
+     <bool>true</bool>
+    </property>
+    <property name="currentText">
+     <string>Online</string>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -130,8 +203,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>406</width>
-     <height>21</height>
+     <width>520</width>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuDisconnect">
@@ -144,6 +217,7 @@
     <property name="title">
      <string>Tools</string>
     </property>
+    <addaction name="actionConfigure_game_library"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -164,6 +238,11 @@
   <action name="actionHelp">
    <property name="text">
     <string>Help</string>
+   </property>
+  </action>
+  <action name="actionConfigure_game_library">
+   <property name="text">
+    <string>Configure game library</string>
    </property>
   </action>
  </widget>

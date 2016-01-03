@@ -18,17 +18,26 @@ SOURCES += main.cpp\
         loginwindow.cpp \
     mainwindow.cpp \
     addfriend.cpp \
-    chatbox.cpp
+    chatbox.cpp \
+    gamelibrary.cpp \
+    game_detection.cpp \
+    launch_game.cpp \
+    funkcije.cpp
 
 HEADERS  += loginwindow.h \
     mainwindow.h \
     addfriend.h \
-    chatbox.h
+    chatbox.h \
+    funkcije.h \
+    launch_game.h \
+    game_detection.h \
+    gamelibrary.h
 
 FORMS    += loginwindow.ui \
     mainwindow.ui \
     addfriend.ui \
-    chatbox.ui
+    chatbox.ui \
+    gamelibrary.ui
 
 RESOURCES += \
     resources.qrc
