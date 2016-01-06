@@ -20,7 +20,6 @@ gamelibrary::gamelibrary(QWidget *parent) :
     ui(new Ui::gamelibrary)
 {
     ui->setupUi(this);
-    tGames gameRecord;
     std::fstream file;
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
     if (!file) {
@@ -29,16 +28,28 @@ gamelibrary::gamelibrary(QWidget *parent) :
         msgBox.exec();
         return;
     }
+    file.close();
+
+    this->fullfill_table();
+
+    this->mainClass = static_cast<MainWindow*>(parent);
+}
+
+void gamelibrary::fullfill_table () {
+    tGames gameRecord;
+    std::fstream file;
+    file.open("gameslist.dat",std::ios::in | std::ios::binary);
     int counter=0;
-//    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);   //defines that it is not possible to select one cell only, but on mouse click (or on position through table items) is selected whole row
-//    ui->tableWidget->verticalHeader()->hide();  //hides row numbers
+    ui->tableWidget->clearContents();
+    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);   //defines that it is not possible to select one cell only, but on mouse click (or on position through table items) is selected whole row
+    ui->tableWidget->verticalHeader()->hide();  //hides row numbers
     while (true) {
         file.read( (char*)&gameRecord,sizeof(tGames) );
         if (file.eof()==true) {
             break;
         }
 
-        ui->tableWidget->insertRow(counter);    //this command inserts rows, so cells can be added later in this loop
+        ui->tableWidget->insertRow(counter);    //this command inserts row, so cells can be added later in this loop
 
         ui->tableWidget->setItem(counter,0,new QTableWidgetItem(gameRecord.fullName));
         ui->tableWidget->setItem(counter,1,new QTableWidgetItem(gameRecord.processName));
@@ -115,6 +126,7 @@ void gamelibrary::on_buttonBox_clicked(QAbstractButton *button)
           ui->tableWidget->item(active_row,2)->setText( ui->destPathTextBox->text() );
     }
     else {
+        mainClass->refresh_games_list();
         this->close();
     }
 }
@@ -141,4 +153,21 @@ void gamelibrary::on_tableWidget_currentCellChanged(int currentRow, int currentC
         }
     }
     file.close();
+}
+
+void gamelibrary::on_checkUpdateButton_clicked()
+{
+    QMessageBox msgBox;
+    switch ( mainClass->update_supported_games_list() ) {   //depending on result of called function, one of following cases will be executed
+        case 0:     //error has occurred
+            msgBox.setText("Error has been occurred while receiving packet with most recent list of supported games! Try again later.");
+            break;
+        case 1:     //current file is up to date
+            msgBox.setText("Current list of supported games is up to date!");
+            break;
+        case 2:     //newer file has been received
+            msgBox.setText("Newer version of list of supported games has been found and received!");
+            this->fullfill_table();
+    }
+    msgBox.exec();
 }

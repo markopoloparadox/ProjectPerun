@@ -1,8 +1,101 @@
 //Ucitavanje TCP biblioteke
 var net = require("net");
 var fs = require("fs");
+var dgram = require('dgram');
 
 var clients = [];
+var chats = [];
+
+function PersonQuitChat(data, socket) {
+    
+    while(data.userlist.indexOf(socket.name)  !== -1) {
+        data.userlist.splice(data.userlist.indexOf(socket.name), 1);
+    }
+    
+    SendGroupMsg(data, socket);
+}
+
+function AddPersonToChat(data, socket) {
+    var post = new Object();
+    
+    var person = GetClientByEmail(data.username);
+    if(person == 0 || data.userlist.indexOf(data.username) != -1) {
+        post.connection = "0015";
+        socket.write(JSON.stringify(post));
+        return;
+    } else {
+        post.connection = "dummy";
+        socket.write(JSON.stringify(post));
+    }
+    
+    data.msg = "Has added " + data.username + " to chat...";
+    data.userlist.push(data.username);
+    
+    for(var index in data.userlist) {
+        var name = data.userlist[index];
+        var i = GetClientByEmail(name);
+        if(i != -1) {
+            post.connection = "0023";
+            post.chatid = data.chatid;
+            post.userlist = data.userlist;
+            post.msg = socket.name + ":" + data.msg;
+            
+            var message = JSON.stringify(post);
+            var client = dgram.createSocket("udp4");
+            client.send(message, 0, message.length, i.port, i.remoteAddress, function(err) {
+              console.log("")
+            });
+        }
+    }
+}
+
+function SendGroupMsg(data, socket) {
+    var post = new Object();
+    for(var index in data.userlist) {
+        var name = data.userlist[index];
+        var i = GetClientByEmail(name);
+        if(i != 0) {
+            post.connection = "0023";
+            post.chatid = data.chatid;
+            post.userlist = data.userlist;
+            post.msg = socket.name + ":" + data.msg;
+            
+            var message = JSON.stringify(post);
+            var client = dgram.createSocket("udp4");
+            client.send(message, 0, message.length, i.port, i.remoteAddress, function(err) {
+              console.log("Mislim da se nije sve poslalo?")
+            });
+        }
+    }
+}
+
+function CreateChat(username, socket) {
+    var post = new Object();
+    var i = GetClientByEmail(username)
+    if(i == 0) {
+        post.connection = "0015";
+        socket.write(JSON.stringify(post));
+        return;
+    }
+    
+    var chatElement = new Object();
+    chatElement.id = chats.length + 1;
+    chatElement.userlist = [socket.name, username];
+    chats.push(chatElement);
+    
+    post.connection = "0022";
+    post.chatid = chatElement.id;
+    post.userlist = chatElement.userlist;
+    post.msg = "";
+    socket.write(JSON.stringify(post));
+    
+    var cli = GetClientByEmail(socket.name);
+    var message = JSON.stringify(post);
+    var client = dgram.createSocket("udp4");
+    client.send(message, 0, message.length, cli.port, cli.remoteAddress, function(err) {
+        client.close();
+    });
+}
 
 function ReadDatabase() {
     var TextFromFile = fs.readFileSync(__dirname + "\\BazaKorisnika.json", "utf8");
@@ -10,7 +103,7 @@ function ReadDatabase() {
     return users;
 }
 
-function WriteToDatabse(users) {
+function WriteToDatabase(users) {
     users = JSON.stringify(users)
     fs.writeFile(__dirname + "\\BazaKorisnika.json", users, function (err) {
         if (err) return console.log(err);
@@ -42,7 +135,7 @@ function AddUserToDataBase(email, password, socket) {
         user.friends = friends;
         users.push(user);
 
-        WriteToDatabse(users);
+        WriteToDatabase(users);
         console.log("Dodan je korisnik: " + user.email + " " + user.password);
 
         var post = new Object();
@@ -87,6 +180,30 @@ function LoginUser(email, password, port, socket) {
     }
 }
 
+function AddLeadingZeros(num, size) {
+    var s = num+"";
+    while (s.length < size)		s = "0" + s;
+    return s;
+}
+
+function CheckForUpdateGamesList(usr_size, usr_datetime, socket) {
+    var filename = 'gameslist.dat';
+	var usr_last_modified = new Date(usr_datetime);
+    var stat1 = fs.statSync(filename);
+    var post = new Object();
+    if (stat1.mtime.getTime() > usr_last_modified.getTime() || stat1.size != usr_size) {
+			post.connection = "0020";
+			post.size = AddLeadingZeros(stat1.size, 8);		//defining post.size as fixed size (otherwise would number 0 (represented as integer) be converted to string "0" and 1000 to "1000" after stringifying, so packets' size and structure would not be always same!) - can contain value from 0 to 10 000 000
+			var fajl = fs.readFileSync(filename, "binary");
+            post.file = fajl;
+			console.log("Games list is not same like latest version. File is sent to client.");
+    } else {
+        post.connection = "0019";
+        console.log("Games list is up to date.");
+    }
+    socket.write(JSON.stringify(post));
+	return;
+}
 
 function CurrUserStatus(email) {
     for(var i = 0; i < clients.length; ++i)
@@ -96,14 +213,13 @@ function CurrUserStatus(email) {
     return "Offline";
 }
 
-
 function AddFriendToFriendList(users, index, socket, email) {
     for(var i = 0; i < users[index].friends.length; ++i)
         if(users[index].friends[i] == email)
             return 0;
 
     users[index].friends.push(email);
-    WriteToDatabse(users);
+    WriteToDatabase(users);
     console.log("Dodan je prijatelj: " + socket.name + "->" + email);
     return 1;
 }
@@ -166,7 +282,6 @@ function SendFriendsStatus(socket) {
     return;
 }
 
-
 function GetClientByEmail(email) {
     for(var i = 0; i < clients.length; ++i)
         if(clients[i].email == email)
@@ -215,6 +330,21 @@ var server = net.createServer(function(socket) {
         
         if(data.connection == "0014")
             SendClientData(socket, data.email);
+            
+		if(data.connection == "0018")
+			CheckForUpdateGamesList(data.size, data.datetime, socket);
+            
+        if(data.connection == "0021")
+			CreateChat(data.username, socket);
+            
+        if(data.connection == "0023")
+			SendGroupMsg(data, socket);
+        
+        if(data.connection == "0024")
+            AddPersonToChat(data, socket);
+        
+        if(data.connection == "0025")
+            PersonQuitChat(data, socket);
     });
 
 

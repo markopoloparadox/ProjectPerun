@@ -1,68 +1,105 @@
 #include "chatbox.h"
 #include "ui_chatbox.h"
 
-ChatBox::ChatBox(QTcpSocket* socket, QString ip, qint16 port, QString myName, QString hisName, QWidget *parent) :
+ChatBox::ChatBox(QJsonObject object, QTcpSocket *socket, QString name, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::ChatBox)
 {
     ui->setupUi(this);
-    if(socket == nullptr) {
-        m_Socket = new QTcpSocket;
-        m_Socket->connectToHost(ip, port);
-        m_Socket->waitForConnected();
-        if(m_Socket->state() == QAbstractSocket::UnconnectedState)
-            this->close();
-        m_IncClientName = myName;
-        m_OutClientName = hisName;
-        qDebug() << myName <<" " << hisName;
+    ui->TextBrowser->append(object["msg"].toString());
 
-        QJsonObject packet;
-        packet["connection"] = "0018";
-        packet["icName"] = m_IncClientName;
-        packet["ocName"] = m_OutClientName;
-        ui->TextBrowser->append(m_IncClientName);
+    this->setWindowTitle(name);
+    this->m_Socket = socket;
+    this->m_UsVec = object["userlist"].toArray();
+    this->m_ChatId = object["chatid"].toInt();
+    this->m_Users = "";
 
-        QJsonDocument docPacket(packet);
-        QByteArray rawPacket = (docPacket.toJson(QJsonDocument::Compact));
-        m_Socket->write(rawPacket);
-        m_Socket->flush();
 
-    } else {
-        m_Socket = socket;
-    }
-    connect(m_Socket, SIGNAL(readyRead()), this, SLOT(Listen()));
+    for(int i = 0; i < m_UsVec.size(); ++i)
+        this->m_Users += (m_UsVec[i].toString()+ " ");
+
+    ui->UserListTextBrowser->setText(m_Users);
+
+    connect(ui->EnterButton, SIGNAL(clicked(bool)), this, SLOT(SendMsg()));
+    connect(ui->ExitButton, SIGNAL(clicked(bool)), this, SLOT(CloseMsg()));
+    connect(ui->AddUserToChatButton, SIGNAL(clicked(bool)), this, SLOT(AddFriend()));
+    connect(ui->EnterLineEdit, SIGNAL(returnPressed()), this, SLOT(SendMsg()));
+
 }
 
 ChatBox::~ChatBox() {
     delete ui;
-    delete m_Socket;
 }
 
-void ChatBox::Listen() {
-    QByteArray rawPacket;
-    rawPacket = m_Socket->readAll();
-    QJsonDocument docPacket;
-    docPacket = QJsonDocument::fromJson(rawPacket.constData());
-    QJsonObject packet;
-    packet = docPacket.object();
+void ChatBox::Update(QJsonObject object){
+    m_UsVec = object["userlist"].toArray();
+    m_Users = "";
 
-    if(packet["connection"] == "0017") {
-        ui->TextBrowser->append(m_OutClientName + ":" + packet["msg"].toString());
-    } else if (packet["connection"] == "0018") {
-        m_IncClientName = packet["ocName"].toString();
-        m_OutClientName = packet["icName"].toString();
+    for(int i = 0; i < m_UsVec.size(); ++i)
+        m_Users += (m_UsVec[i].toString()+ " ");
+
+    ui->UserListTextBrowser->setText(m_Users);
+    ui->TextBrowser->append(object["msg"].toString());
+
+}
+
+void ChatBox::SendMsg(){
+    QJsonObject object;
+    QJsonDocument document;
+    QByteArray packet;
+
+    object["connection"] = "0023";
+    object["chatid"] = m_ChatId;
+    object["userlist"] = m_UsVec;
+    object["msg"] = ui->EnterLineEdit->text();
+    document.setObject(object);
+    packet = (document.toJson(QJsonDocument::Compact));
+
+    m_Socket->write(packet);
+    m_Socket->waitForBytesWritten(1000);
+}
+
+void ChatBox::CloseMsg() {
+    QJsonObject object;
+    QJsonDocument document;
+    QByteArray packet;
+
+    object["connection"] = "0025";
+    object["chatid"] = m_ChatId;
+    object["userlist"] = m_UsVec;
+    object["msg"] = "Has left...";
+    document.setObject(object);
+    packet = (document.toJson(QJsonDocument::Compact));
+
+    m_Socket->write(packet);
+    m_Socket->waitForBytesWritten(1000);
+
+    this->destroy();
+}
+
+void ChatBox::AddFriend(){
+    QJsonObject object;
+    QJsonDocument document;
+    QByteArray packet;
+
+    object["connection"] = "0024";
+    object["chatid"] = m_ChatId;
+    object["userlist"] = m_UsVec;
+    object["msg"] = "";
+    object["username"] = ui->EnterLineEdit->text();
+    document.setObject(object);
+    packet = (document.toJson(QJsonDocument::Compact));
+
+    m_Socket->write(packet);
+    m_Socket->waitForBytesWritten(1000);
+    m_Socket->waitForReadyRead(3000);
+
+    packet = m_Socket->readAll();
+    document = QJsonDocument::fromJson(packet.constData());
+    object = document.object();
+
+    if(object["connection"] == "0015") {
+        ui->EnterLineEdit->setText("Erroro");
     }
-
 }
 
-void ChatBox::on_EnterButton_clicked() {
-    QJsonObject packet;
-    packet["connection"] = "0017";
-    packet["msg"] = ui->EnterLineEdit->text();
-    ui->TextBrowser->append(m_IncClientName + ":" + ui->EnterLineEdit->text());
-
-    QJsonDocument docPacket(packet);
-    QByteArray rawPacket = (docPacket.toJson(QJsonDocument::Compact));
-    m_Socket->write(rawPacket);
-    m_Socket->flush();
-}
