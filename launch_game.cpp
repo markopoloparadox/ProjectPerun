@@ -1,6 +1,6 @@
 #include "launch_game.h"
 
-void start_program (char* prog_name,char* ip=NULL,char* port=NULL) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
+void start_program (const char* prog_name,const char* ip=NULL,const char* port=NULL) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
     std::stringstream command;
 
     std::fstream file;
@@ -21,10 +21,10 @@ void start_program (char* prog_name,char* ip=NULL,char* port=NULL) {    //start 
             break;
         }
         if (strcmp(pathRecord.processName,prog_name)==0) {
-            command << "cd \"" << pathRecord.path << "\" && ";
             break;
         }
     }
+
     file.close();
     if (pathNotDefined==false) {
         QMessageBox msgBox;
@@ -33,7 +33,14 @@ void start_program (char* prog_name,char* ip=NULL,char* port=NULL) {    //start 
         file.clear();
         return;
     }
-    command << "start " << prog_name;
+#if defined (_WIN32)
+    command << "cd \"" << pathRecord.path << "\" && " << "start " << prog_name;
+#endif
+#if defined (__linux__)
+    std::string path = pathRecord.path;
+    path.replace(path.find("/home"),5,"~");             //replaces "/home" part of directory path with "~" because that's the only way how can be programs run when using absolute path
+    command << path.c_str() << "/" << prog_name;
+#endif
 
     if (ip!=NULL) {
         std::string launchArguments = gameRecord.multiplayerCommandLineArguments;

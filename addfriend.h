@@ -22,8 +22,6 @@ public:
 private slots:
     void on_AddButton_clicked();
 
-    void on_pushButton_2_clicked();
-
 private:
     Ui::AddFriend *ui;
     QTcpSocket* m_Socket;

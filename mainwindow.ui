@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>520</width>
-    <height>334</height>
+    <width>525</width>
+    <height>371</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,14 +17,14 @@
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>30</y>
+      <x>20</x>
+      <y>60</y>
       <width>481</width>
       <height>261</height>
      </rect>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
@@ -38,6 +38,18 @@
         <width>381</width>
         <height>192</height>
        </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SingleSelection</enum>
+      </property>
+      <property name="selectionBehavior">
+       <enum>QAbstractItemView::SelectRows</enum>
       </property>
       <property name="columnCount">
        <number>3</number>
@@ -84,12 +96,38 @@
        <string>Add</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="UserStatsButton">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>200</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Show user's game stats</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="JoinFriendButton">
+      <property name="geometry">
+       <rect>
+        <x>190</x>
+        <y>200</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Join server over friend</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
       <string>Chat</string>
      </attribute>
-     <widget class="QLabel" name="StatusLabel">
+     <widget class="QLabel" name="ChatStatusLabel">
       <property name="geometry">
        <rect>
         <x>100</x>
@@ -102,7 +140,7 @@
        <string>Status</string>
       </property>
      </widget>
-     <widget class="QLineEdit" name="EmailLineEdit">
+     <widget class="QLineEdit" name="UserNamChatLineEdit">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -136,7 +174,7 @@
         <x>10</x>
         <y>31</y>
         <width>451</width>
-        <height>171</height>
+        <height>181</height>
        </rect>
       </property>
      </widget>
@@ -151,19 +189,6 @@
       </property>
       <property name="text">
        <string>Double click on name of game you want to run:</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="refreshButton">
-      <property name="geometry">
-       <rect>
-        <x>170</x>
-        <y>200</y>
-        <width>93</width>
-        <height>28</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Refresh list</string>
       </property>
      </widget>
     </widget>
@@ -184,9 +209,9 @@
    <widget class="QComboBox" name="currentStatusCBox">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>8</y>
-      <width>291</width>
+      <x>120</x>
+      <y>7</y>
+      <width>281</width>
       <height>22</height>
      </rect>
     </property>
@@ -197,13 +222,42 @@
      <string>Online</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>30</y>
+      <width>111</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Currently playing:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="currentlyPlayingTBox">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>120</x>
+      <y>30</y>
+      <width>281</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>520</width>
+     <width>525</width>
      <height>26</height>
     </rect>
    </property>

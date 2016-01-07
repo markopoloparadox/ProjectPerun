@@ -1,17 +1,29 @@
 #include "loginwindow.h"
 #include "ui_loginwindow.h"
+#include <QMessageBox>
 
 
-LoginWindow::LoginWindow(QWidget *parent) :
+LoginWindow::LoginWindow(bool adminMode, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::LoginWindow)
 {
     ui->setupUi(this);
-    m_Socket = new QTcpSocket();
     ui->PasswordLineEdit->setEchoMode(QLineEdit::Password); //hides entered characters while typing
+
+    this->m_Socket = new QTcpSocket();
 
     connect(ui->RegisterButton, SIGNAL(clicked()), this, SLOT(RegisterAnAccount()));
     connect(ui->LoginButton, SIGNAL(clicked()), this, SLOT(Login()));
+    connect(ui->PasswordLineEdit, SIGNAL(returnPressed()), this, SLOT(Login()));
+    connect(ui->EmailLineEdit, SIGNAL(returnPressed()), this, SLOT(Login()));
+
+    if (adminMode==false) {
+        QMessageBox msgBox;
+        msgBox.setText("To use all features that application contains, please run this application with administative privileges.");
+        msgBox.exec();
+    }
+    this->adminMode = adminMode;    //value of adminMode as a parameter (that was sent from main() function) is set to adminMode attribute of LoginWindow (that's required because it will be forwarded next to instance of MainWindow class)
+
 }
 
 LoginWindow::~LoginWindow()
@@ -100,7 +112,7 @@ void LoginWindow::RegisterAnAccount() {
     m_Socket->waitForReadyRead(3000);
 
     /*
-     * readALl() metoda čita bajtovni niz i sprema ga. Ostalo bi trebalo biti sve jasno
+     * readAll() metoda čita bajtovni niz i sprema ga. Ostalo bi trebalo biti sve jasno
      *
     */
     packet = m_Socket->readAll();
@@ -115,7 +127,7 @@ void LoginWindow::RegisterAnAccount() {
     }
 
     /*
-     * Odspajamo se i čekamo potvrdu da smo se otspojili. Metoda close() zatvara socket i resetira
+     * Odspajamo se i čekamo potvrdu da smo se odspojili. Metoda close() zatvara socket i resetira
      * ga.
      *
     */
@@ -151,6 +163,7 @@ void LoginWindow::Login() {
     QJsonObject object;
     QJsonDocument document;
     QByteArray packet;
+    qsrand(QTime::currentTime().msec());
     quint16 port = qrand() % 601 + 1400;
 
     object["connection"] = "0004";
@@ -175,18 +188,8 @@ void LoginWindow::Login() {
         ui->StatusLabel->setText("Wrong password!");
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
     } else if(object["connection"] == "0007") {
-        MainWindow* mainWin = new MainWindow(m_Socket, port);
+        MainWindow* mainWin = new MainWindow(m_Socket, port, adminMode, email);
         mainWin->show();
         this->close();
     }
-}
-
-void LoginWindow::on_PasswordLineEdit_returnPressed()
-{
-    this->Login();
-}
-
-void LoginWindow::on_EmailLineEdit_returnPressed()
-{
-    this->Login();
 }

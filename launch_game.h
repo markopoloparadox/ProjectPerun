@@ -8,7 +8,7 @@
 #include <QMessageBox>
 #include "funkcije.h"
 
-void start_program (char* prog_name,char* ip,char* port);
+void start_program (const char* prog_name,const char* ip,const char* port);
 
 #endif // LAUNCH_GAME
 

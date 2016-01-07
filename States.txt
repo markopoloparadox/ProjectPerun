@@ -21,4 +21,14 @@
  * "0016" - Server - User is online and ready to communicate - data[connection, ip, port, clname];
  * "0017" - Client;Client - Send a msg - data[connection, msg];
  * "0017" - Client;Client - Send other clients name - data[connection, icname, ocname];
-*/
+ * "0018" - Client - Check for update of gameslist.dat - data[connection, size, datatime];
+ * "0019" - Server - User's gameslist.dat is up to date - data[connection];
+ * "0020" - Server - Sends new version of requested file - data[connection, size, file];
+ * "0021" - Client - Create a chat if the username is online - data[connection, username];
+ * "0023" - Server/Client - New msg for chat - data[connection, chatid, userlist, msg];
+ * "0024" - Client - Add new friend to chat - data[connection, chatid, userlist, msg, username];
+ * "0025" - Client - Exit chat - data[connection, chatid, userlist, msg];
+ * "0026" - User   - User changed his/her custom status or his/her game status was changed - data[connection, custom_status, current_game];
+ * "0027" - User   - User sends request for receiving game activity of some user - data[connection, email];
+ * "0028" - Server - Sends to user list of games which user with requested username has played - data[connection, stats[]];
+ */

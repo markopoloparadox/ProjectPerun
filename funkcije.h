@@ -18,9 +18,9 @@ struct tPath {
     char customExecutableParameters[100];
 };
 
-int binarySearch (std::fstream &file,char* value,int first,int last);
+int binarySearch (std::fstream &file,const char* value,int first,int last);
 
-int binarySearchWrapper (std::fstream &file,char* processName);
+int binarySearchWrapper (std::fstream &file,const char* processName);
 
 #endif // FUNKCIJE
 
