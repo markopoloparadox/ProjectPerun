@@ -49,10 +49,13 @@ private slots:
 
     void on_listWidget_itemDoubleClicked(QListWidgetItem *item);
 
+<<<<<<< HEAD
     void on_UserStatsButton_clicked();
 
     void on_JoinFriendButton_clicked();
 
+=======
+>>>>>>> origin/master
 private:
     QTcpSocket* m_Socket;
     QUdpSocket* m_UDPSocket;
@@ -64,6 +67,7 @@ private:
     qint16 m_Port;
     Ui::MainWindow *ui;
     bool adminMode;
+<<<<<<< HEAD
     bool right;
     bool flags[2]={};
     void send_notification_message (int tID, const char* custom_status, char* played_game_name, char* gameserver_info);
@@ -73,5 +77,11 @@ private:
 
 void outer_function (void *arg);
 QString seconds_to_HMS(double durationDouble);
+=======
+    void send_notification_message (const char* custom_status, char* played_game_name,char* gameserver_info);
+};
+
+void outer_function (void *arg);
+>>>>>>> origin/master
 
 #endif // MAINWINDOW_H

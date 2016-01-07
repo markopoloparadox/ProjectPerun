@@ -8,6 +8,7 @@
 #define LOCKFILE "lock.dat"
 
 bool running_as_administrator () {      //if user can successfully run following command, he is administrator (so (s)he will probably be able to run them again in future)
+<<<<<<< HEAD
 #if defined (__linux__)
     return !getuid();   //returns 0 if user is root (superuser)
 #endif
@@ -15,6 +16,17 @@ bool running_as_administrator () {      //if user can successfully run following
     std::stringstream output, input, recognition_pattern;
     input << "netsh wfp capture start cab=off traceonly=off keywords=none file=network_traffic && netsh wfp capture stop";
     recognition_pattern << "Run as administrator";
+=======
+    std::stringstream output, input, recognition_pattern;
+#if defined (__linux__)
+    input << "apt-get install sniffit";
+    recognition_pattern << "are you root?";
+#endif
+#if defined (_WIN32)
+    input << "netsh wfp capture start cab=off traceonly=off keywords=none file=network_traffic && netsh wfp capture stop";
+    recognition_pattern << "Run as administrator";
+#endif
+>>>>>>> origin/master
     std::shared_ptr<FILE> pipe(popen(input.str().c_str(), "r"), pclose);
     if (!pipe) {    //if message could not be returned, then we will assume that application is not run as administrator (even if it is, we won't use Shell commands because Operating System obviously doesn't respond)
         return false;
@@ -30,7 +42,10 @@ bool running_as_administrator () {      //if user can successfully run following
     else {
         return false;
     }
+<<<<<<< HEAD
 #endif
+=======
+>>>>>>> origin/master
 }
 
 int main(int argc, char *argv[])
@@ -56,7 +71,11 @@ int main(int argc, char *argv[])
              << ":loop" << std::endl                    //label which defines starting positon of loop
              //<< "%*" << std::endl                     //this line we could use if we want to forward additional parameters when calling this batch script
              << "2>nul (" << std::endl                  //prevents error messages
+<<<<<<< HEAD
              << ">>lock.dat echo off" << std::endl      //try to open file in append mode
+=======
+             << ">>lock.dat" << std::endl               //try to open file in append mode
+>>>>>>> origin/master
              << ") && (goto sleep)" << std::endl        //if it succeed (if no game is played), go on line where is label 'sleep'; otherwise go to next line
              << "netsh wfp capture start cab=off traceonly=off keywords=none file=network_traffic" << std::endl     //start capturing network traffic
              << "timeout /t 1 /nobreak" << std::endl                                    //wait for 1 second till some network traffic is generated

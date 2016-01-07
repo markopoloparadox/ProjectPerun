@@ -63,6 +63,10 @@ function SendGroupMsg(data, socket) {
             var message = JSON.stringify(post);
             var client = dgram.createSocket("udp4");
             client.send(message, 0, message.length, i.port, i.remoteAddress, function(err) {
+<<<<<<< HEAD
+=======
+              console.log("Mislim da se nije sve poslalo?")
+>>>>>>> origin/master
             });
         }
     }
@@ -103,7 +107,11 @@ function ReadDatabase() {
 }
 
 function WriteToDatabase(users) {
+<<<<<<< HEAD
     users = JSON.stringify(users);
+=======
+    users = JSON.stringify(users)
+>>>>>>> origin/master
     fs.writeFile(__dirname + "\\BazaKorisnika.json", users, function (err) {
         if (err) return console.log(err);
     });
@@ -183,8 +191,12 @@ function LoginUser(email, password, port, socket) {
 
 function AddLeadingZeros(num, size) {
     var s = num+"";
+<<<<<<< HEAD
     while (s.length < size)
 		s = "0" + s;
+=======
+    while (s.length < size)		s = "0" + s;
+>>>>>>> origin/master
     return s;
 }
 
@@ -206,6 +218,7 @@ function CheckForUpdateGamesList(usr_size, usr_datetime, socket) {
     socket.write(JSON.stringify(post));
 	return;
 }
+<<<<<<< HEAD
 
 function ChangeGameActivity(email, current_game) {		//counting user's time spent on some game
 	var index = FindUserByEmail(clients, email);
@@ -237,6 +250,8 @@ function StatusChanged(email, custom_status, current_game) {
 	clients[index].custom_status = custom_status;
 	clients[index].current_game = current_game;
 }
+=======
+>>>>>>> origin/master
 
 function CurrUserStatus(email) {
     for(var i = 0; i < clients.length; ++i)
@@ -246,6 +261,7 @@ function CurrUserStatus(email) {
     return "Offline";
 }
 
+<<<<<<< HEAD
 function CurrUserGame(email) {
 	for(var i = 0 ; i < clients.length; ++i)
 		if(clients[i].email == email)
@@ -319,6 +335,8 @@ function CurrUserGame(email) {
     });
 }*/
 
+=======
+>>>>>>> origin/master
 function AddFriendToFriendList(users, index, socket, email) {
     for(var i = 0; i < users[index].friends.length; ++i)
         if(users[index].friends[i] == email)
@@ -439,6 +457,7 @@ var server = net.createServer(function(socket) {
         else if(data.connection == "0014")
             SendClientData(socket, data.email);
             
+<<<<<<< HEAD
 		else if(data.connection == "0018")
 			CheckForUpdateGamesList(data.size, data.datetime, socket);
             
@@ -459,6 +478,22 @@ var server = net.createServer(function(socket) {
 		
 		//else if(data.connection == "0027")
 			//RequestForGameStatistics (data.email, socket);
+=======
+		if(data.connection == "0018")
+			CheckForUpdateGamesList(data.size, data.datetime, socket);
+            
+        if(data.connection == "0021")
+			CreateChat(data.username, socket);
+            
+        if(data.connection == "0023")
+			SendGroupMsg(data, socket);
+        
+        if(data.connection == "0024")
+            AddPersonToChat(data, socket);
+        
+        if(data.connection == "0025")
+            PersonQuitChat(data, socket);
+>>>>>>> origin/master
     });
 
 

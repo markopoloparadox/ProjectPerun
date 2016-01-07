@@ -88,6 +88,7 @@ void MainWindow::on_AddFriendButton_clicked(){
 
 }
 
+<<<<<<< HEAD
 void MainWindow::enter_in_critical_section(int tID1, int tID2) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
     flags[tID1]=1;
     while (flags[tID2]!=0) {
@@ -106,6 +107,8 @@ void MainWindow::exit_from_critical_section(int tID1, int tID2) {     //part of 
     flags[tID1]=0;
     }
 
+=======
+>>>>>>> origin/master
 void MainWindow::on_RefreshFriendsButton_clicked(){
     QJsonObject object;
     QJsonDocument document;
@@ -205,6 +208,7 @@ void MainWindow::check_game_status()
 {
     char *running_game, *gameserver_info;
     while (true) {
+<<<<<<< HEAD
         gameserver_info = NULL;//= new char [22];
         running_game = game_running_in_background();
         std::fstream file;
@@ -221,6 +225,22 @@ void MainWindow::check_game_status()
             qDebug() << "igra radi";
             char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
             if (this->adminMode == true) {
+=======
+        gameserver_info = new char [22];
+        running_game = game_running_in_background();
+        std::fstream file;
+        if (running_game != NULL) {
+            if (adminMode==true) {
+                file.open("lock.dat",std::ios::app);    //file is locked - that means that network tracing will now start because game was detected
+            }
+            gameserver_info = NULL; //found_gameserver_address(running_game);
+        }
+        send_notification_message(NULL,running_game,gameserver_info);
+        sleep(10);
+        while (running_game!=NULL && strcmp(game_running_in_background(running_game),running_game)==0) {
+            char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
+            if (adminMode==true) {
+>>>>>>> origin/master
                 tmp = found_gameserver_address(running_game);
             }
 
@@ -230,22 +250,33 @@ void MainWindow::check_game_status()
             }
             else if (tmp != NULL && gameserver_info == NULL) {  //user was till now in game, but wasn't on any game server
                 gameserver_info = tmp;
+<<<<<<< HEAD
                 tmp = NULL;
             }
             else if (tmp == NULL && gameserver_info == NULL) {  //user still hasn't joined any game server
                 sleep(10);
                 continue;   //state hasn't changed - therefore we must execute other commands in this "while" block (other users already know on which game and on which gameserver are we playing)
+=======
+            }
+            else if (tmp == NULL && gameserver_info == NULL) {  //user still hasn't joined any game server
+                sleep(10);
+                continue;
+>>>>>>> origin/master
             }
             else if (strcmp(tmp,gameserver_info)!=0) {  //user has stayed playing same game, but he switched to another game server
                 delete [] gameserver_info;
                 gameserver_info = tmp;
+<<<<<<< HEAD
                 tmp = NULL;
+=======
+>>>>>>> origin/master
             }
             else if (strcmp(tmp,gameserver_info)==0) {  //if user plays on same server on which he played before 10 seconds
                 delete [] tmp;
                 sleep(10);
                 continue;   //there is no need to send notification message if state hasn't changed
             }
+<<<<<<< HEAD
             send_notification_message(1,NULL,running_game,gameserver_info); //notifies server and other users that you have changed your gaming status
             if (tmp != NULL) {
                 delete [] tmp;
@@ -261,10 +292,22 @@ void MainWindow::check_game_status()
                 file.close();       //we are unlocking the lock file because no game is active, so no game is generating network traffic (what means no need for tracking)
             }
             //send_notification_message(1,NULL,NULL,NULL);    //notifies server and users that we aren't playing previously game anymore
+=======
+            send_notification_message(NULL,running_game,gameserver_info);
+            delete [] tmp;
+            sleep(10);
+        }
+        if (running_game!=NULL) {       //the game is obviously not active anymore (otherwise program would be still in upper loop)
+            delete [] running_game;
+            if (adminMode==true) {      //if user has not run application as administrator, then no network traffic is captured and file wasn't locked, so there is no need to unlock it
+                file.close();       //we are unlocking the lock file because no game is active, so no game is generating network traffic (what means no need for tracking)
+            }
+>>>>>>> origin/master
         }
     }
 }
 
+<<<<<<< HEAD
 void MainWindow::send_notification_message (int tID, const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
     if (custom_status==NULL && played_game_name==NULL && gameserver_info==NULL) {   //if we haven't changed custom status and are not playing on any game
         if (this->current_game == "") {     //if we haven't also played anything 10 seconds before - we don't need to notify others that we are not playing anything because they already know that
@@ -295,6 +338,30 @@ void MainWindow::send_notification_message (int tID, const char* custom_status=N
     }
     else {      //if user changed his/her CUSTOM status
         this->custom_status = custom_status;
+=======
+void MainWindow::send_notification_message (const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) or you have changed your custom status
+    QString game;
+    if (played_game_name==NULL) {
+        game="";
+        ui->currentlyPlayingTBox->setText("");
+    }
+    else {
+        std::fstream file;
+        tGames gameRecord;
+        file.open("gameslist.dat",std::ios::in | std::ios::binary);
+        int position = binarySearchWrapper(file,played_game_name);
+        file.seekg(position*sizeof(tGames));
+        file.read( (char*)&gameRecord,sizeof(tGames) );
+        file.close();
+        if (gameserver_info==NULL) {
+            game=QString::fromUtf8(gameRecord.fullName);
+            ui->currentlyPlayingTBox->setText(gameRecord.fullName);
+        }
+        else if (gameserver_info!=NULL) {
+            game=QString::fromUtf8(gameRecord.fullName) + " (" + QString::fromUtf8(gameserver_info) + ")";
+            ui->currentlyPlayingTBox->setText(QString::fromUtf8(gameRecord.fullName) + " (" + QString::fromUtf8(gameserver_info) + ")");
+        }
+>>>>>>> origin/master
     }
 
     this->enter_in_critical_section(tID,!tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
@@ -323,7 +390,11 @@ void MainWindow::on_currentStatusCBox_activated(const QString &arg1)
 {
     if (QString::compare(arg1,this->custom_status)!=0) {
         this->custom_status=arg1;
+<<<<<<< HEAD
         this->send_notification_message(0,this->custom_status.toStdString().c_str(),NULL,NULL);
+=======
+        this->send_notification_message(this->custom_status.toStdString().c_str());
+>>>>>>> origin/master
     }
 }
 
@@ -369,6 +440,10 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
     file.close();
     file.clear();
     file2.close();
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/master
 }
 
 void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
@@ -493,6 +568,7 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         qDebug () << "Error has been occurred while receiving packet with most recent list of supported games.";
         return 0;   //error has occurred while receiving packet with most recent list of supported games
     }
+<<<<<<< HEAD
 }
 
 void MainWindow::on_UserStatsButton_clicked()
@@ -601,4 +677,6 @@ void MainWindow::on_JoinFriendButton_clicked()
     int port_delimiter = game_info.find(':');
     start_program ( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter).c_str() , game_info.substr(port_delimiter+1).c_str() );
     file.close();
+=======
+>>>>>>> origin/master
 }

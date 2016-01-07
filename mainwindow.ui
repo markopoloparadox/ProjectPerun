@@ -7,7 +7,11 @@
     <x>0</x>
     <y>0</y>
     <width>525</width>
+<<<<<<< HEAD
     <height>371</height>
+=======
+    <height>349</height>
+>>>>>>> origin/master
    </rect>
   </property>
   <property name="windowTitle">
@@ -258,7 +262,11 @@
      <x>0</x>
      <y>0</y>
      <width>525</width>
+<<<<<<< HEAD
      <height>26</height>
+=======
+     <height>21</height>
+>>>>>>> origin/master
     </rect>
    </property>
    <widget class="QMenu" name="menuDisconnect">
