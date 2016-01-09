@@ -30,8 +30,6 @@ public slots:
     void CloseMsg();
     void AddFriend();
 
-private slots:
-
 private:
     Ui::ChatBox *ui;
     QTcpSocket *m_Socket;

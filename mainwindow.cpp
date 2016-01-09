@@ -18,7 +18,7 @@
 #include <ctime>
 #include <cmath>
 
-char* add_zeros_before (short value, short numOfDigits = 2) {
+/*char* add_zeros_before (short value, short numOfDigits = 2) {
     char result[5] = "";
     short i;
     for (i = 0 ; i<numOfDigits ; i++) {
@@ -27,7 +27,7 @@ char* add_zeros_before (short value, short numOfDigits = 2) {
     }
     result[i] = '\0';
     return result;
-}
+}*/
 #endif
 
 MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name, QWidget *parent) :
@@ -36,7 +36,7 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
 
     ui->setupUi(this);
 
-    this->setWindowTitle(name);
+    this->setWindowTitle("Perun (Logged in as " + name + ")");
     this->m_Port = port;
     this->m_Socket = socket;
     this->adminMode = aMode;
@@ -48,7 +48,7 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     connect(m_UDPSocket, SIGNAL(readyRead()), this, SLOT(CheckForMsg()));
 
     QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(on_RefreshFriendsButton_clicked()));
+    connect(timer, SIGNAL(timeout()), this, SLOT(refresh_friends_list()));
     timer->start(1000);
 
     ui->currentStatusCBox->addItem("Online");
@@ -58,7 +58,10 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     ui->currentlyPlayingTBox->setText( this->current_game = "" );
     ui->tableWidget->verticalHeader()->hide();
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(0,QHeaderView::Stretch);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(1,QHeaderView::Stretch);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(2,QHeaderView::Stretch);
+    ui->currentlyPlayingTBox->setFocus();
 
     std::fstream file;
     file.open("gamepath.dat",std::ios::app); //create file if it does not exists; otherwise do nothing (it won't be changed)
@@ -70,14 +73,21 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     }
     this->refresh_games_list();     //refreshes table in "My Games" tab with games that user owns (for which (s)he defined path)
 
-    std::thread *listener_thread = new std::thread (outer_function,this);
+    listener_thread = new std::thread (outer_function,this);
 
 }
 
 MainWindow::~MainWindow(){
 
     listener_thread->join();
+    delete listener_thread;
+    m_Socket->disconnectFromHost();
+    m_Socket->close();
+    m_Socket->abort();
     delete m_Socket;
+    m_UDPSocket->disconnectFromHost();
+    m_UDPSocket->close();
+    m_UDPSocket->abort();
     delete m_UDPSocket;
     delete ui;
 }
@@ -88,7 +98,6 @@ void MainWindow::on_AddFriendButton_clicked(){
 
 }
 
-<<<<<<< HEAD
 void MainWindow::enter_in_critical_section(int tID1, int tID2) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
     flags[tID1]=1;
     while (flags[tID2]!=0) {
@@ -107,9 +116,7 @@ void MainWindow::exit_from_critical_section(int tID1, int tID2) {     //part of 
     flags[tID1]=0;
     }
 
-=======
->>>>>>> origin/master
-void MainWindow::on_RefreshFriendsButton_clicked(){
+void MainWindow::refresh_friends_list(){
     QJsonObject object;
     QJsonDocument document;
     QByteArray packet;
@@ -141,7 +148,7 @@ void MainWindow::on_RefreshFriendsButton_clicked(){
     }
 }
 
-void MainWindow::on_ChatButton_clicked(){
+/*void MainWindow::on_ChatButton_clicked(){
     QJsonObject object;
     QJsonDocument document;
     QByteArray packet;
@@ -169,7 +176,7 @@ void MainWindow::on_ChatButton_clicked(){
             ui->ChatStatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
         }
     }
-}
+}*/
 
 void MainWindow::CheckForMsg(){
     QJsonObject object;
@@ -208,7 +215,6 @@ void MainWindow::check_game_status()
 {
     char *running_game, *gameserver_info;
     while (true) {
-<<<<<<< HEAD
         gameserver_info = NULL;//= new char [22];
         running_game = game_running_in_background();
         std::fstream file;
@@ -225,22 +231,6 @@ void MainWindow::check_game_status()
             qDebug() << "igra radi";
             char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
             if (this->adminMode == true) {
-=======
-        gameserver_info = new char [22];
-        running_game = game_running_in_background();
-        std::fstream file;
-        if (running_game != NULL) {
-            if (adminMode==true) {
-                file.open("lock.dat",std::ios::app);    //file is locked - that means that network tracing will now start because game was detected
-            }
-            gameserver_info = NULL; //found_gameserver_address(running_game);
-        }
-        send_notification_message(NULL,running_game,gameserver_info);
-        sleep(10);
-        while (running_game!=NULL && strcmp(game_running_in_background(running_game),running_game)==0) {
-            char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
-            if (adminMode==true) {
->>>>>>> origin/master
                 tmp = found_gameserver_address(running_game);
             }
 
@@ -250,33 +240,22 @@ void MainWindow::check_game_status()
             }
             else if (tmp != NULL && gameserver_info == NULL) {  //user was till now in game, but wasn't on any game server
                 gameserver_info = tmp;
-<<<<<<< HEAD
                 tmp = NULL;
             }
             else if (tmp == NULL && gameserver_info == NULL) {  //user still hasn't joined any game server
                 sleep(10);
                 continue;   //state hasn't changed - therefore we must execute other commands in this "while" block (other users already know on which game and on which gameserver are we playing)
-=======
-            }
-            else if (tmp == NULL && gameserver_info == NULL) {  //user still hasn't joined any game server
-                sleep(10);
-                continue;
->>>>>>> origin/master
             }
             else if (strcmp(tmp,gameserver_info)!=0) {  //user has stayed playing same game, but he switched to another game server
                 delete [] gameserver_info;
                 gameserver_info = tmp;
-<<<<<<< HEAD
                 tmp = NULL;
-=======
->>>>>>> origin/master
             }
             else if (strcmp(tmp,gameserver_info)==0) {  //if user plays on same server on which he played before 10 seconds
                 delete [] tmp;
                 sleep(10);
                 continue;   //there is no need to send notification message if state hasn't changed
             }
-<<<<<<< HEAD
             send_notification_message(1,NULL,running_game,gameserver_info); //notifies server and other users that you have changed your gaming status
             if (tmp != NULL) {
                 delete [] tmp;
@@ -291,23 +270,11 @@ void MainWindow::check_game_status()
                 }
                 file.close();       //we are unlocking the lock file because no game is active, so no game is generating network traffic (what means no need for tracking)
             }
-            //send_notification_message(1,NULL,NULL,NULL);    //notifies server and users that we aren't playing previously game anymore
-=======
-            send_notification_message(NULL,running_game,gameserver_info);
-            delete [] tmp;
-            sleep(10);
-        }
-        if (running_game!=NULL) {       //the game is obviously not active anymore (otherwise program would be still in upper loop)
-            delete [] running_game;
-            if (adminMode==true) {      //if user has not run application as administrator, then no network traffic is captured and file wasn't locked, so there is no need to unlock it
-                file.close();       //we are unlocking the lock file because no game is active, so no game is generating network traffic (what means no need for tracking)
-            }
->>>>>>> origin/master
+            send_notification_message(1,NULL,NULL,NULL);    //this is required to add if user instantly starts another game after he lefts previous one
         }
     }
 }
 
-<<<<<<< HEAD
 void MainWindow::send_notification_message (int tID, const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
     if (custom_status==NULL && played_game_name==NULL && gameserver_info==NULL) {   //if we haven't changed custom status and are not playing on any game
         if (this->current_game == "") {     //if we haven't also played anything 10 seconds before - we don't need to notify others that we are not playing anything because they already know that
@@ -338,30 +305,6 @@ void MainWindow::send_notification_message (int tID, const char* custom_status=N
     }
     else {      //if user changed his/her CUSTOM status
         this->custom_status = custom_status;
-=======
-void MainWindow::send_notification_message (const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) or you have changed your custom status
-    QString game;
-    if (played_game_name==NULL) {
-        game="";
-        ui->currentlyPlayingTBox->setText("");
-    }
-    else {
-        std::fstream file;
-        tGames gameRecord;
-        file.open("gameslist.dat",std::ios::in | std::ios::binary);
-        int position = binarySearchWrapper(file,played_game_name);
-        file.seekg(position*sizeof(tGames));
-        file.read( (char*)&gameRecord,sizeof(tGames) );
-        file.close();
-        if (gameserver_info==NULL) {
-            game=QString::fromUtf8(gameRecord.fullName);
-            ui->currentlyPlayingTBox->setText(gameRecord.fullName);
-        }
-        else if (gameserver_info!=NULL) {
-            game=QString::fromUtf8(gameRecord.fullName) + " (" + QString::fromUtf8(gameserver_info) + ")";
-            ui->currentlyPlayingTBox->setText(QString::fromUtf8(gameRecord.fullName) + " (" + QString::fromUtf8(gameserver_info) + ")");
-        }
->>>>>>> origin/master
     }
 
     this->enter_in_critical_section(tID,!tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
@@ -390,11 +333,7 @@ void MainWindow::on_currentStatusCBox_activated(const QString &arg1)
 {
     if (QString::compare(arg1,this->custom_status)!=0) {
         this->custom_status=arg1;
-<<<<<<< HEAD
         this->send_notification_message(0,this->custom_status.toStdString().c_str(),NULL,NULL);
-=======
-        this->send_notification_message(this->custom_status.toStdString().c_str());
->>>>>>> origin/master
     }
 }
 
@@ -440,10 +379,6 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
     file.close();
     file.clear();
     file2.close();
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/master
 }
 
 void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
@@ -525,7 +460,8 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         struct stat attrib;             // create a file attribute structure
         stat("gameslist.dat", &attrib);     // get the attributes of file gameslist.dat
         clock = gmtime(&(attrib.st_mtime));     //transform date of last modification time from Local Time Zone to GMT Time Zone
-        datetime << add_zeros_before(clock->tm_year,4) << "-" << add_zeros_before(clock->tm_mon+1) << "-" << add_zeros_before(clock->tm_mday) << "T" << add_zeros_before(clock->tm_hour) << ":" << add_zeros_before(clock->tm_min) << ":" << add_zeros_before(clock->tm_sec);   //concatenate date and time elements into string in valid format (US format)
+        //datetime << add_zeros_before(clock->tm_year,4) << "-" << add_zeros_before(clock->tm_mon+1) << "-" << add_zeros_before(clock->tm_mday) << "T" << add_zeros_before(clock->tm_hour) << ":" << add_zeros_before(clock->tm_min) << ":" << add_zeros_before(clock->tm_sec);   //concatenate date and time elements into string in valid format (US format) - this is replaced by functions that already exist (add_zeros_before(int,int) was user defined function)
+        datetime << QString::number(clock->tm_year).rightJustified(4,'0') << "-" << QString::number(clock->tm_mon+1).rightJustified(2,'0') << "-" << QString::number(clock->tm_mday).rightJustified(2,'0') << "T" << QString::number(clock->tm_hour).rightJustified(2,'0') << ":" << QString::number(clock->tm_min).rightJustified(2,'0') << ":" << QString::number(clock->tm_sec).rightJustified(2,'0');   //concatenate date and time elements into string in valid format (US format)
 #endif
 
     }
@@ -568,22 +504,24 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         qDebug () << "Error has been occurred while receiving packet with most recent list of supported games.";
         return 0;   //error has occurred while receiving packet with most recent list of supported games
     }
-<<<<<<< HEAD
 }
 
 void MainWindow::on_UserStatsButton_clicked()
 {
-/*    int row = ui->tableWidget->currentRow();
+    int row = ui->tableWidget->currentRow();
     QMessageBox msgBox;
     if (row == -1) {   //if any row isn't selected
         msgBox.setText("First select row with user for which you want get game statistics!");
         msgBox.exec();
         return;
     }
+    this->showGameStats( ui->tableWidget->item(row, 0)->text() );
+}
 
+void MainWindow::showGameStats(QString email) {
     QJsonObject user;
     user["connection"] = "0027";
-    user["email"] = ui->tableWidget->item(row, 0)->text();
+    user["email"] = email;
 
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
@@ -606,35 +544,23 @@ void MainWindow::on_UserStatsButton_clicked()
     QJsonValue value = object2.value("stats");
     QJsonArray array = value.toArray();
 
-    QString statslist = "username: " + ui->tableWidget->item(row, 0)->text() + "\r\n";
-    statslist += QString("Game name").leftJustified(50, ' ') + QString("Time played").rightJustified(16, ' ') + "\r\n";
-    for (int i=0 ; i < array.count() ; i++) {
-        statslist += array[i].toObject().value("game").toString().leftJustified(50, ' ') + seconds_to_HMS(array[i].toObject().value("time_played").toString().toDouble()).rightJustified(16, ' ') + "\r\n";
+    QString statslist = "Username: " + email + "\r\n\r\n";
+    if (array.count() == 0) {
+        statslist += QString("This user hasn't played any game yet!");
     }
-
+    else {
+        statslist += QString("Game name").leftJustified(34, ' ') + QString("Time played").rightJustified(16, ' ') + "\r\n" + QString("__________________________________________________\r\n\r\n");
+        for (int i=0 ; i < array.count() ; i++) {
+            statslist += divide_on_multiple_lines(array[i].toObject().value("game").toString(),34) + seconds_to_HMS( array[i].toObject().value("time_played").toDouble() ).rightJustified(16, '.') + "\r\n";
+        }
+    }
+    QMessageBox msgBox;
+    msgBox.setWindowTitle( "Games statistics for user " + email );
     msgBox.setText(statslist);
     QFont font = QFont("Courier");
     msgBox.setFont(font);
-    msgBox.setFixedWidth(500);
-    msgBox.exec();*/
+    msgBox.exec();
 }
-
-QString seconds_to_HMS(double durationDouble)
-{
-  int duration = (int) durationDouble;
-  QString res;
-  int seconds = (int) (duration % 60);
-  duration /= 60;
-  int minutes = (int) (duration % 60);
-  duration /= 60;
-  int hours = (int) (duration / 24);
-  if(hours == 0)
-      return QString("%1min:%2s").arg( QString::number(minutes).rightJustified(2,' ') ).arg( QString::number(seconds).rightJustified(2,'0') );
-  if (minutes == 0)
-      return QString("%1s").arg( QString::number(seconds).rightJustified(2,' ') );
-  return QString("%1h:%2min:%3s").arg( QString::number(hours).rightJustified(5,' ') ).arg( QString::number(minutes).rightJustified(2,'0') ).arg( QString::number(seconds).rightJustified(2,'0') );
-}
-
 
 void MainWindow::on_JoinFriendButton_clicked()
 {
@@ -677,6 +603,50 @@ void MainWindow::on_JoinFriendButton_clicked()
     int port_delimiter = game_info.find(':');
     start_program ( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter).c_str() , game_info.substr(port_delimiter+1).c_str() );
     file.close();
-=======
->>>>>>> origin/master
+}
+
+void MainWindow::on_actionMy_Stats_triggered()
+{
+    this->showGameStats(this->m_Name);
+}
+
+void MainWindow::on_InstantChatButton_clicked()
+{
+    QJsonObject object;
+    QJsonDocument document;
+    QByteArray packet;
+
+    short active_row = ui->tableWidget->currentRow();
+    if(ui->tableWidget->item(active_row,0)->text() == m_Name) {
+        QMessageBox msgbox;
+        msgbox.setText("Get a friend mate!");
+        msgbox.exec();
+//        ui->ChatStatusLabel->setText("Get a friend mate!");
+//        ui->ChatStatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+        return;
+    }
+
+    object["connection"] = "0021";
+    object["username"] = ui->tableWidget->item(active_row,0)->text();
+    document.setObject(object);
+    packet = (document.toJson(QJsonDocument::Compact));
+
+    m_Socket->write(packet);
+    m_Socket->waitForBytesWritten(1000);
+    if(m_Socket->waitForReadyRead(3000)) {
+        packet = m_Socket->readAll();
+        document = QJsonDocument::fromJson(packet.constData());
+        object = document.object();
+
+        if(object["connection"] == "0015") {
+            QMessageBox msgbox;
+            msgbox.setText("You can't chat with offline user.");
+            msgbox.exec();
+        }
+    }
+}
+
+void MainWindow::on_actionDisconnect_triggered()
+{
+    this->close();
 }

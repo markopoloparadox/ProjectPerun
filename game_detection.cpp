@@ -2,18 +2,13 @@
 #include <QDebug>
 
 #if defined (_WIN32)
-<<<<<<< HEAD
 char* game_running_in_background(char* process_name) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
+    if (process_name != NULL) {
+        process_name = stringToLowerCase(process_name);         //distributions of Windows operating system make no difference between uppercase and lowercase strings, so all strings are transformed into lowercase (also, names of processes which generated network traffic are represented in lowercase, so that's the reason why we are performing trasformation here)
+    }
     bool game_specified = true;
     if (process_name==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
         game_specified = false;         //so we are setting that game is specified - we need to find it out in this function call
-=======
-char* game_running_in_background(char* process_name) {  //background...does not necessarily mean that wanted process is minimized/inactive
-    bool game_specified = true;
-    if (process_name==NULL) {
-        game_specified = false;
-        process_name = new char [50];    //assume that nothing is found
->>>>>>> origin/master
     }
     bool found = false;
 
@@ -28,11 +23,7 @@ char* game_running_in_background(char* process_name) {  //background...does not 
         pe32.dwSize = sizeof(pe32);
 
         if(::Process32First(hSnapshot, &pe32)) {
-<<<<<<< HEAD
             while (true) {      //read active processes and check if any of them satisfies condition
-=======
-            while (true) {
->>>>>>> origin/master
                 char tmp[50];
                 std::wcstombs(tmp,pe32.szExeFile,50);    //converts process name which is in UTF-16 Windows format into 8-bit ASCII and store it into process_name
                 for (int i=0 ; tmp[i]!='\0' ; i++) {   //convert process name into lowercase (because MS DOS derived operating system does not make changes between upper and lower letters in file names)
@@ -41,16 +32,10 @@ char* game_running_in_background(char* process_name) {  //background...does not 
                     }
                 }
                 if (game_specified==false) {
-<<<<<<< HEAD
                     if( binarySearchWrapper(file,tmp)!=-1 ) {  //Check if currently observed process is game which is supported
                         //Looks like some game is running!
                         found = true;
                         process_name = new char [50];    //assume that nothing is found
-=======
-                    if( binarySearchWrapper(file,tmp)!=-1 ) {  //Check if it's game which is supported
-                        //Looks like some game is running!
-                        found = true;
->>>>>>> origin/master
                         strcpy(process_name,tmp);
                         //We're done...
                         break;
@@ -77,18 +62,10 @@ char* game_running_in_background(char* process_name) {  //background...does not 
         return process_name;
     }
     else {
-<<<<<<< HEAD
         if (game_specified==true) {     //if user exited game that he was playing till now
             return "\0";        //can't return NULL because result will be used as parameter in strcmp(const char*,const char*) function (NULL value would result with crash)
         }
         else {              //if there is currently no game active (and none was played in last few seconds)
-=======
-        if (game_specified==true) {     //if 'process_name' is still running
-            return "\0";        //can't return NULL because result will be used as parameter in strcmp(const char*,const char*) function (NULL value would result with crash)
-        }
-        else {              //if there is currently no game active
-            delete [] process_name;
->>>>>>> origin/master
             return NULL;        //none game is found
         }
     }
@@ -277,12 +254,9 @@ char* game_running_in_background(char* process_name) {
     }
 }*/
 
-char* found_gameserver_address(char* gameprocess_name=NULL) {  //XML file with network traffic is read from END to beginning
-<<<<<<< HEAD
+#if defined (_WIN32)
+char* found_gameserver_address(char* gameprocess_name) {  //XML file with network traffic is read from END to beginning - gameprocess_name must be lowercase because names of processes in generated file will be represented in lowercase
     //start_packet_tracing();     //first we need to track network packets and generate required XML file - meanwhile network tracking is done by separate process which is run at application start-up
-=======
-    //start_packet_tracing();     //first we need to track network packets and generate required XML file
->>>>>>> origin/master
     int numOfTabs = 0;  //number of tab spaces which are set next to each other - this will be used to indice end of section with relevant data
     std::fstream file;
     file.open("network_traffic.xml",std::ios::app | std::ios::in);  //append mode is used to detect if file is currently still written by other process (netsh wfp)
@@ -422,3 +396,10 @@ char* found_gameserver_address(char* gameprocess_name=NULL) {  //XML file with n
         i--;    //each time in loop we decrement position of character (because in each loop we read at least 1 character
     }
 }
+#endif
+
+#if defined (__linux__)
+char* found_gameserver_address(char* gameprocess_name) {
+    //appropriate solution still isn't found!!!
+}
+#endif

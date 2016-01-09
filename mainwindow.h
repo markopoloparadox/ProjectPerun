@@ -16,6 +16,7 @@
 #include "chatbox.h"
 #include "game_detection.h"
 #include "launch_game.h"
+#include "funkcije.h"
 
 namespace Ui {
 class MainWindow;
@@ -37,9 +38,7 @@ public slots:
 private slots:
     void on_AddFriendButton_clicked();
 
-    void on_RefreshFriendsButton_clicked();
-
-    void on_ChatButton_clicked();
+    void refresh_friends_list();
 
     void CheckForMsg();
 
@@ -49,13 +48,16 @@ private slots:
 
     void on_listWidget_itemDoubleClicked(QListWidgetItem *item);
 
-<<<<<<< HEAD
     void on_UserStatsButton_clicked();
 
     void on_JoinFriendButton_clicked();
 
-=======
->>>>>>> origin/master
+    void on_actionMy_Stats_triggered();
+
+    void on_InstantChatButton_clicked();
+
+    void on_actionDisconnect_triggered();
+
 private:
     QTcpSocket* m_Socket;
     QUdpSocket* m_UDPSocket;
@@ -67,21 +69,14 @@ private:
     qint16 m_Port;
     Ui::MainWindow *ui;
     bool adminMode;
-<<<<<<< HEAD
     bool right;
     bool flags[2]={};
     void send_notification_message (int tID, const char* custom_status, char* played_game_name, char* gameserver_info);
     void enter_in_critical_section (int tID1, int tID2);
     void exit_from_critical_section (int tID1, int tID2);
+    void showGameStats (QString email);
 };
 
 void outer_function (void *arg);
-QString seconds_to_HMS(double durationDouble);
-=======
-    void send_notification_message (const char* custom_status, char* played_game_name,char* gameserver_info);
-};
-
-void outer_function (void *arg);
->>>>>>> origin/master
 
 #endif // MAINWINDOW_H

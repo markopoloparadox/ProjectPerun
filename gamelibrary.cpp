@@ -55,6 +55,9 @@ void gamelibrary::fullfill_table () {
         ui->tableWidget->setItem(counter,1,new QTableWidgetItem(gameRecord.processName));
         ui->tableWidget->setItem(counter,2,new QTableWidgetItem(""));   //this muss to be here even if no path for some game is defined - reason is that that cell must contain object where values in future could be stored (new QTableWidgetItem)
         ui->tableWidget->setEditTriggers(0);    //this disables editing cells in table
+        ui->tableWidget->horizontalHeader()->setSectionResizeMode(0,QHeaderView::Stretch);
+        ui->tableWidget->horizontalHeader()->setSectionResizeMode(1,QHeaderView::Stretch);
+        ui->tableWidget->horizontalHeader()->setSectionResizeMode(2,QHeaderView::Stretch);
         counter++;
     }
     file.close();

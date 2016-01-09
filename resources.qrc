@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/text">
         <file>States.txt</file>
+        <file>appicon.rc</file>
     </qresource>
 </RCC>

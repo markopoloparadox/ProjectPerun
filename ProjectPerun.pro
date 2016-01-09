@@ -14,7 +14,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = ProjectPerun
 TEMPLATE = app
-
+RC_FILE = appicon.rc
 
 SOURCES += main.cpp\
         loginwindow.cpp \

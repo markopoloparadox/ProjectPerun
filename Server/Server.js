@@ -63,10 +63,6 @@ function SendGroupMsg(data, socket) {
             var message = JSON.stringify(post);
             var client = dgram.createSocket("udp4");
             client.send(message, 0, message.length, i.port, i.remoteAddress, function(err) {
-<<<<<<< HEAD
-=======
-              console.log("Mislim da se nije sve poslalo?")
->>>>>>> origin/master
             });
         }
     }
@@ -107,11 +103,7 @@ function ReadDatabase() {
 }
 
 function WriteToDatabase(users) {
-<<<<<<< HEAD
     users = JSON.stringify(users);
-=======
-    users = JSON.stringify(users)
->>>>>>> origin/master
     fs.writeFile(__dirname + "\\BazaKorisnika.json", users, function (err) {
         if (err) return console.log(err);
     });
@@ -119,8 +111,9 @@ function WriteToDatabase(users) {
 
 function FindUserByEmail(users, email) {
     for(var i = 0; i < users.length; ++i) {
-        if(users[i].email == email)
-            return i;
+        if(users[i].email == email) {
+			return i;
+		}
     }
     return -1;
 }
@@ -190,13 +183,9 @@ function LoginUser(email, password, port, socket) {
 }
 
 function AddLeadingZeros(num, size) {
-    var s = num+"";
-<<<<<<< HEAD
+    var s = num + "";
     while (s.length < size)
 		s = "0" + s;
-=======
-    while (s.length < size)		s = "0" + s;
->>>>>>> origin/master
     return s;
 }
 
@@ -218,20 +207,19 @@ function CheckForUpdateGamesList(usr_size, usr_datetime, socket) {
     socket.write(JSON.stringify(post));
 	return;
 }
-<<<<<<< HEAD
 
 function ChangeGameActivity(email, current_game) {		//counting user's time spent on some game
 	var index = FindUserByEmail(clients, email);
 	if (current_game == "") {		//if user stopped playing current game (so currently (s)he isn't playing anything)
 		var now = new Date();	//current time (time when user ends playing game which (s)he played till now)
 		var difference = now.getTime() - clients[index].ingame_start_time.getTime();	//in milliseconds
-		var seconds_elapsed = difference/1000;
+		var seconds_elapsed = parseInt (difference/1000);	//there is no need to store milliseconds (and after stringifying numbers in double format take more size than integers)
 		console.log( email + " spent " + seconds_elapsed + " seconds playing " + GameNameOnly(CurrUserGame(email)) );
 		
-		//UpdateGameStatistics(email, GameNameOnly(CurrUserGame(email)), seconds_elapsed);
+		UpdateGameStatistics(email, GameNameOnly(CurrUserGame(email)), seconds_elapsed);
 	}
 	else {		//if user now started playing game
-		FindUserByEmail(clients, email).ingame_start_time = new Date();
+		clients[index].ingame_start_time = new Date();
 		console.log(email + " started playing " + GameNameOnly(current_game) + " on " + clients[index].ingame_start_time);
 	}
 }
@@ -250,8 +238,6 @@ function StatusChanged(email, custom_status, current_game) {
 	clients[index].custom_status = custom_status;
 	clients[index].current_game = current_game;
 }
-=======
->>>>>>> origin/master
 
 function CurrUserStatus(email) {
     for(var i = 0; i < clients.length; ++i)
@@ -261,7 +247,6 @@ function CurrUserStatus(email) {
     return "Offline";
 }
 
-<<<<<<< HEAD
 function CurrUserGame(email) {
 	for(var i = 0 ; i < clients.length; ++i)
 		if(clients[i].email == email)
@@ -269,74 +254,103 @@ function CurrUserGame(email) {
 	return "";		//if user isn't playing anything, then return empty string
 }
 
-/*function RequestForGameStatistics (email, socket) {
+function RequestForGameStatistics (email, socket) {
+	console.log(socket.name + " sent request for game statistics of user " + email);
 	post = new Object();
 	post.connection = "0028";
-//	if (FindUserByEmail(clients, email)==-1) {
-//		post.stats = [];
-//		console.log(email + " sent request for game statistics for unexisted user.");
-//	}
-//	else {		//if forwarded email (username) exists in database
-//	post.stats = ReadGameStatistics(email);			//opet otkomentirati
-//	socket.write(JSON.stringify(post));				//opet otkomentirati
-//	}
-}*/
-
-/*function ReadGameStatistics(email) {
-	fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");
-	if (fs.size==0) {
-		
+	post.stats = ReadGameStatistics(email);
+	var index = FindUserByEmail(clients,email);
+	if (CurrUserGame(email) != "") {
+		var i;
+		for (i=0 ; i<post.stats.length ; i++) {
+			if (post.stats[i].game == GameNameOnly(CurrUserGame(email))) {
+				post.stats[i].time_played += parseInt( ( new Date() - clients[index].ingame_start_time.getTime() ) / 1000 );
+				break;
+			}
+		}
+		if (i == post.stats.length) {	//if user is currently playing some game that he never played before (which is still not stored in .json file with stats because user still hasn't exited game)
+			var stat = {
+				game: GameNameOnly(CurrUserGame(email)),
+				time_played: parseInt( ( new Date() - clients[index].ingame_start_time.getTime() ) / 1000 )
+			};
+			post.stats.push(stat);
+		}
 	}
-/*    var TextFromFile = fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");
+	var j;
+	console.log(email + " has played following games:");
+	for (var j=0 ; j<post.stats.length ; j++)
+		console.log("\t" + post.stats[j].game + " - " + post.stats[j].time_played + " seconds");
+	if (j==0) {
+		console.log("\tNone yet");
+	}
+	socket.write(JSON.stringify(post));
+}
+
+function ReadGameStatistics(email) {
+	var stat1 = fs.statSync(__dirname + "\\GameActivity.json");
+	if (stat1.size == 0) {	//in case that file is totally empty (it doesn't even contain '[]')
+		return [];
+	}
+
+    var TextFromFile = fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");
     var all_users = JSON.parse(TextFromFile);
 	for (var i=0 ; i<all_users.length ; i++)
-		if (all_users[i].user == email)
-			return all_users[i];
+		if (all_users[i].user == email) {
+			return all_users[i].stats;		//returns all games that user with forwarded email played
+		}
+	console.log("Really, nothing was found for searched user in database");
 	return [];		//if for requested username is still no game statistics saved
-}*/
+}
 
-/*function UpdateGameStatistics(user, game, time_played) {
-	var TextFromFile = fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");		//mozda nejde Sync???
-    var content = JSON.parse(TextFromFile);
+function UpdateGameStatistics(email, game, time_played) {
+	var content;
+	var stat1 = fs.statSync(__dirname + "\\GameActivity.json");
+	if (stat1.size == 0) {	//in case that file is totally empty (it doesn't even contain '[]')
+		content = [];
+	}
+	else {
+		var TextFromFile = fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");																											//mozda nejde Sync???
+		content = JSON.parse(TextFromFile);
+	}
 	var user_exists = false;
 	var game_exists = false;
 	for (var i=0 ; i<content.length ; i++)
-		if (content[i].user == user) {
+		if (content[i].user == email) {
 			user_exists = true;
 			for (var j=0 ; j<content[i].stats.length ; j++) {
 				if (content[i].stats[j].game == game) {
 					game_exists = true;
-					content[i].stats[j].time_played += time_played;		//maybe this needs to be changed into integer (mislim da ipak nejde int)
+					content[i].stats[j].time_played += time_played;
+					break;
 				}
 			}
-			if (game_exists == false)
-				content[game] = time_played;
-				//content[i].stats.push([game, time_played]);		//not sure if 'key':'val' pair must be sent as an array
+			if (game_exists == false) {
+				var stat = {
+					game: game,
+					time_played: time_played
+				};
+				content[i].stats.push(stat);
+			}
+			break;
 		}
 	if (user_exists == false) {
 		var stat = {
-			game: time_played
+			game: game,
+			time_played: time_played
 		};
-//		user = [];
-//		user.push(stat);
-		var user = new Object();
-		user.game = game;
-		user.time_played = time_played;
-		content.push(user);
-//		content[user]=[];
-//		content[user].push(stat);
-//		content[user].stats.push(stat);
-		//content[user].push(stat);	//not sure if this will work
-//		content[user][game] = time_played;
-//		content[user][stat];
+		var obj = new Object();
+		obj.user = email;
+		obj.stats = new Array();
+		
+		obj.stats.push(stat);
+		
+		content.push(obj);
 	}
-    fs.writeFileSync(__dirname + "\\GameActivity.json", JSON.stringify(content), function (err) {
+    fs.writeFile(__dirname + "\\GameActivity.json", JSON.stringify(content), function (err) {
         if (err)	return console.log(err);
     });
-}*/
+}
 
-=======
->>>>>>> origin/master
 function AddFriendToFriendList(users, index, socket, email) {
     for(var i = 0; i < users[index].friends.length; ++i)
         if(users[index].friends[i] == email)
@@ -457,7 +471,6 @@ var server = net.createServer(function(socket) {
         else if(data.connection == "0014")
             SendClientData(socket, data.email);
             
-<<<<<<< HEAD
 		else if(data.connection == "0018")
 			CheckForUpdateGamesList(data.size, data.datetime, socket);
             
@@ -476,24 +489,8 @@ var server = net.createServer(function(socket) {
 		else if(data.connection == "0026")
 			StatusChanged(socket.name, data.custom_status, data.current_game);
 		
-		//else if(data.connection == "0027")
-			//RequestForGameStatistics (data.email, socket);
-=======
-		if(data.connection == "0018")
-			CheckForUpdateGamesList(data.size, data.datetime, socket);
-            
-        if(data.connection == "0021")
-			CreateChat(data.username, socket);
-            
-        if(data.connection == "0023")
-			SendGroupMsg(data, socket);
-        
-        if(data.connection == "0024")
-            AddPersonToChat(data, socket);
-        
-        if(data.connection == "0025")
-            PersonQuitChat(data, socket);
->>>>>>> origin/master
+		else if(data.connection == "0027")
+			RequestForGameStatistics (data.email, socket);
     });
 
 
@@ -515,3 +512,6 @@ var server = net.createServer(function(socket) {
 
 });
 server.listen(1337, '127.0.0.1');
+fs.appendFileSync(__dirname + "\\GameActivity.json","");	//creates file in which will be stored game statistics (if it does not exists)
+fs.appendFileSync(__dirname + "\\BazaKorisnika.json","");	//creates file in which will be stored list of users and their basic info (if it does not exists)
+fs.appendFileSync(__dirname + "\\gameslist.dat","");		//creates file in which will be stored game info which will be sent to users (if it does not exists)

@@ -6,40 +6,69 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>151</width>
-    <height>135</height>
+    <width>177</width>
+    <height>181</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>177</width>
+    <height>181</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
-    <item>
-     <widget class="QLineEdit" name="EmailLineEdit"/>
-    </item>
-    <item>
-     <widget class="QPushButton" name="AddButton">
-      <property name="text">
-       <string>Add</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="CancelButton">
-      <property name="text">
-       <string>Cancel</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QLabel" name="StatusLabel">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Type username of friend you want to add:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="EmailLineEdit"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="AddButton">
+        <property name="text">
+         <string>Add</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="CancelButton">
+        <property name="text">
+         <string>Cancel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
+   <widget class="QLabel" name="StatusLabel">
+    <property name="geometry">
+     <rect>
+      <x>18</x>
+      <y>11</y>
+      <width>16</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
