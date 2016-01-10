@@ -189,6 +189,7 @@ void LoginWindow::Login() {
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
     } else if(object["connection"] == "0007") {
         MainWindow* mainWin = new MainWindow(m_Socket, port, adminMode, email);
+        //mainWin->setAttribute(Qt::WA_DeleteOnClose);
         mainWin->show();
         this->close();
     }

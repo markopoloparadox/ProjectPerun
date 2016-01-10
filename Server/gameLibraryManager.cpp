@@ -86,12 +86,32 @@ void addNewRecord () {
 	file.close();
 }
 
+void efficient_bubble_sort (fstream &file,int N) {	//replacing edited record will take long in worst case scenario
+	tGames record1,record2;
+	int i,j;
+	bool stop=false;
+	for (j=0;j<N-1 && stop==false;j++) {
+		stop=true;
+		for (i=N-2;i>=j;i--) {
+			file.seekg(i*sizeof(tGames));
+			file.read((char*)&record1,sizeof(tGames));
+			file.read((char*)&record2,sizeof(tGames));
+			if (strcmp(record1.processName,record2.processName)>0) {
+				file.seekp(i*sizeof(tGames));
+				file.write((char*)&record2,sizeof(tGames));
+				file.write((char*)&record1,sizeof(tGames));
+				stop=false;
+			}
+		}
+	}
+}
+
 void editExistingRecord () {
 	cout << "Enter process name (often same like name of executable file; include its extension): ";
 	cin.ignore();
 	cin.getline(record.processName,50);
-	int appropriatePosition=binarySearchWrapper(record.processName);
-	if (appropriatePosition==-1) {
+	int currentPosition=binarySearchWrapper(record.processName);
+	if (currentPosition==-1) {
 		cout << "There is no record with this process name in file." << endl;
 		return;
 	}
@@ -103,11 +123,14 @@ void editExistingRecord () {
 		 << "set %%ip%% on position where normally is IP address of remote gameserver" << endl
 		 << "set %%port%% on position where normally is port of remote gameserver" << endl
 		 << ": ";
+	cin.getline(record.multiplayerCommandLineArguments,100);
 	fstream file;
 	file.open("gameslist.dat",ios::in | ios::out | ios::binary);
-	cin.getline(record.multiplayerCommandLineArguments,100);
-	file.seekp(appropriatePosition*sizeof(tGames),ios::beg);
+	file.seekg(0,ios::end);
+	int numOfRecords=file.tellg()/sizeof(tGames);
+	file.seekp((currentPosition)*sizeof(tGames));
 	file.write( (char*)&record,sizeof(tGames) );
+	efficient_bubble_sort(file,numOfRecords);
 	file.close();
 }
 

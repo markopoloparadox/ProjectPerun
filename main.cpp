@@ -35,7 +35,6 @@ bool running_as_administrator () {      //if user can successfully run following
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
     bool adminMode = running_as_administrator();
 
     if (adminMode==true) {
@@ -79,10 +78,15 @@ int main(int argc, char *argv[])
 
 #endif
     }
-    LoginWindow w(adminMode);   //we are sending information about having administrative privileges to constructor of first form which will be opened
-    w.show();
 
-    int exitStatus = a.exec();
+    short exitStatus;
+    do {
+        QApplication a(argc, argv);
+        LoginWindow w(adminMode);   //we are sending information about having administrative privileges to constructor of first form which will be opened
+        //w.setAttribute(Qt::WA_DeleteOnClose);      //this will call destructors of all classes which were closed manually or which were closed by parent class (child class needs to have pointer to parent class forwarded in its constructor in that case)
+        w.show();
+        exitStatus = a.exec();
+    } while (exitStatus == 1);      //we are opening again if exit status is 1 (if user decided to restart application (or login as another user))
 
     remove(LOCKFILE);       //file with name LOCKFILE (currently "lock.dat") is deleted, so Shell (which is executing netsh command) will be terminated after few seconds
 

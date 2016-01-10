@@ -1,4 +1,5 @@
 #include "launch_game.h"
+#include <QDebug>
 
 void start_program (const char* prog_name,const char* ip=NULL,const char* port=NULL) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
     std::stringstream command;
@@ -42,13 +43,17 @@ void start_program (const char* prog_name,const char* ip=NULL,const char* port=N
     command << path.c_str() << "/" << prog_name;
 #endif
 
-    if (ip!=NULL) {
+    if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"\0")!=0) {   //if in this function is forwarded ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
         std::string launchArguments = gameRecord.multiplayerCommandLineArguments;
-        launchArguments.replace(command.str().find("%%ip%%"),6,ip);  //6 represents length of IP adress's placeholder
-        launchArguments.replace(command.str().find("%%port%%"),8,port);   //8 represents length of port's placeholder
+        if (launchArguments.length()==0) {
+
+        }
+        launchArguments.replace(launchArguments.find("%%ip%%"),6,ip);  //6 represents length of IP adress's placeholder
+        launchArguments.replace(launchArguments.find("%%port%%"),8,port);   //8 represents length of port's placeholder
         command << " " << launchArguments.c_str();
     }
     command << " " << pathRecord.customExecutableParameters;
+
     system(command.str().c_str());  //executing
 }
 

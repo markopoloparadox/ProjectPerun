@@ -58,6 +58,8 @@ private slots:
 
     void on_actionDisconnect_triggered();
 
+    void on_actionExit_triggered();
+
 private:
     QTcpSocket* m_Socket;
     QUdpSocket* m_UDPSocket;
@@ -71,9 +73,9 @@ private:
     bool adminMode;
     bool right;
     bool flags[2]={};
-    void send_notification_message (int tID, const char* custom_status, char* played_game_name, char* gameserver_info);
-    void enter_in_critical_section (int tID1, int tID2);
-    void exit_from_critical_section (int tID1, int tID2);
+    void send_notification_message (short tID, const char* custom_status, char* played_game_name, char* gameserver_info);
+    void enter_in_critical_section (short tID1, short tID2);
+    void exit_from_critical_section (short tID1, short tID2);
     void showGameStats (QString email);
 };
 

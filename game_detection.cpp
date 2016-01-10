@@ -3,9 +3,6 @@
 
 #if defined (_WIN32)
 char* game_running_in_background(char* process_name) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
-    if (process_name != NULL) {
-        process_name = stringToLowerCase(process_name);         //distributions of Windows operating system make no difference between uppercase and lowercase strings, so all strings are transformed into lowercase (also, names of processes which generated network traffic are represented in lowercase, so that's the reason why we are performing trasformation here)
-    }
     bool game_specified = true;
     if (process_name==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
         game_specified = false;         //so we are setting that game is specified - we need to find it out in this function call
@@ -255,7 +252,8 @@ char* game_running_in_background(char* process_name) {
 }*/
 
 #if defined (_WIN32)
-char* found_gameserver_address(char* gameprocess_name) {  //XML file with network traffic is read from END to beginning - gameprocess_name must be lowercase because names of processes in generated file will be represented in lowercase
+char* found_gameserver_address(char* gameprocess_name) {  //XML file with network traffic is read from END to beginning
+    gameprocess_name = stringToLowerCase(gameprocess_name);         //distributions of Windows operating system make no difference between uppercase and lowercase strings, so all strings are transformed into lowercase (also, names of processes in generated XML file after tracing network traffic are represented in lowercase, so that's the reason why we are performing trasformation here)
     //start_packet_tracing();     //first we need to track network packets and generate required XML file - meanwhile network tracking is done by separate process which is run at application start-up
     int numOfTabs = 0;  //number of tab spaces which are set next to each other - this will be used to indice end of section with relevant data
     std::fstream file;

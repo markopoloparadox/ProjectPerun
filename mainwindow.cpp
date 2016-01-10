@@ -77,19 +77,15 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
 
 }
 
-MainWindow::~MainWindow(){
-
-    listener_thread->join();
-    delete listener_thread;
+MainWindow::~MainWindow(){      //destructor isn't called when form is closed because this form isn't called with Qt::WA_DeleteOnClose attribute
     m_Socket->disconnectFromHost();
     m_Socket->close();
-    m_Socket->abort();
     delete m_Socket;
     m_UDPSocket->disconnectFromHost();
     m_UDPSocket->close();
-    m_UDPSocket->abort();
     delete m_UDPSocket;
     delete ui;
+    delete listener_thread;     //if destructor is called, this would cause error because active thread must previously be finished and then catched with join() method
 }
 
 void MainWindow::on_AddFriendButton_clicked(){
@@ -98,7 +94,7 @@ void MainWindow::on_AddFriendButton_clicked(){
 
 }
 
-void MainWindow::enter_in_critical_section(int tID1, int tID2) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
+void MainWindow::enter_in_critical_section(short tID1, short tID2) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
     flags[tID1]=1;
     while (flags[tID2]!=0) {
         if (right==tID2) {
@@ -111,7 +107,7 @@ void MainWindow::enter_in_critical_section(int tID1, int tID2) {    //part of De
         }
     }
 
-void MainWindow::exit_from_critical_section(int tID1, int tID2) {     //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function releases resources that were locked by tID1 thread and now it becomes available for another thread
+void MainWindow::exit_from_critical_section(short tID1, short tID2) {     //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function releases resources that were locked by tID1 thread and now it becomes available for another thread
     right=tID2;
     flags[tID1]=0;
     }
@@ -121,10 +117,11 @@ void MainWindow::refresh_friends_list(){
     QJsonDocument document;
     QByteArray packet;
 
-
     object["connection"] = "0011";
     document.setObject(object);
     packet = (document.toJson(QJsonDocument::Compact));
+
+    this->enter_in_critical_section(0,1);
 
     m_Socket->write(packet);
     m_Socket->flush();
@@ -132,6 +129,9 @@ void MainWindow::refresh_friends_list(){
 
 
     packet = m_Socket->readAll();
+
+    this->exit_from_critical_section(0,1);
+
     document = QJsonDocument::fromJson(packet.constData());
     object = document.object();
 
@@ -183,8 +183,12 @@ void MainWindow::CheckForMsg(){
     QJsonDocument document;
     QByteArray packet;
 
+    this->enter_in_critical_section(0,1);
+
     packet.resize(m_UDPSocket->pendingDatagramSize());
     m_UDPSocket->readDatagram(packet.data(), packet.size());
+
+    this->exit_from_critical_section(0,1);
 
     document = QJsonDocument::fromJson(packet.constData());
     object = document.object();
@@ -275,7 +279,7 @@ void MainWindow::check_game_status()
     }
 }
 
-void MainWindow::send_notification_message (int tID, const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
+void MainWindow::send_notification_message (short tID, const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
     if (custom_status==NULL && played_game_name==NULL && gameserver_info==NULL) {   //if we haven't changed custom status and are not playing on any game
         if (this->current_game == "") {     //if we haven't also played anything 10 seconds before - we don't need to notify others that we are not playing anything because they already know that
             return;
@@ -307,8 +311,6 @@ void MainWindow::send_notification_message (int tID, const char* custom_status=N
         this->custom_status = custom_status;
     }
 
-    this->enter_in_critical_section(tID,!tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
-
     QJsonObject user;
     user["connection"] = "0026";
     user["custom_status"] = this->custom_status;
@@ -316,6 +318,9 @@ void MainWindow::send_notification_message (int tID, const char* custom_status=N
 
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
+
+    this->enter_in_critical_section(tID,!tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
+
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(300);
     qDebug() << "User status information is successfully sent!";
@@ -323,10 +328,12 @@ void MainWindow::send_notification_message (int tID, const char* custom_status=N
     packet.clear();
     m_Socket->waitForReadyRead(100);
     packet = m_Socket->readAll();
+
+    this->exit_from_critical_section(tID,!tID);
+
     object = QJsonDocument::fromJson(packet.constData());
     user = object.object();
 
-    this->exit_from_critical_section(tID,!tID);
 }
 
 void MainWindow::on_currentStatusCBox_activated(const QString &arg1)
@@ -372,6 +379,9 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
             continue;
         }
         short position = binarySearchWrapper(file2,recordPath.processName);
+        if (position == -1) {
+            continue;
+        }
         file2.seekp(position*sizeof(tGames));
         file2.read( (char*)&recordGame,sizeof(tGames) );
         ui->listWidget->addItem(recordGame.fullName);
@@ -477,6 +487,9 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
     //qDebug() << "ADAWDWADAWDAW";
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
+
+    this->enter_in_critical_section(0,1);
+
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(1000);
     qDebug() << "Request for update info about gameslist.data has been successfully sent!";
@@ -485,6 +498,9 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
     while(m_Socket->waitForReadyRead(100)) {
         packet += m_Socket->readAll();
     }
+
+    this->exit_from_critical_section(0,1);
+
     object = QJsonDocument::fromJson(packet.constData());
     user = object.object();
     if (user["connection"] == "0019") { //file is up to date
@@ -525,6 +541,9 @@ void MainWindow::showGameStats(QString email) {
 
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
+
+    this->enter_in_critical_section(0,1);
+
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(300);
     qDebug() << "Request for game statistics about " << user["email"] << " has been successfully sent!";
@@ -534,6 +553,8 @@ void MainWindow::showGameStats(QString email) {
     while(m_Socket->waitForReadyRead(300)) {
         packet += m_Socket->readAll();
     }
+
+    this->exit_from_critical_section(0,1);
 
     QJsonObject object2;
     QJsonDocument document;
@@ -601,7 +622,7 @@ void MainWindow::on_JoinFriendButton_clicked()
         }
     }
     int port_delimiter = game_info.find(':');
-    start_program ( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter).c_str() , game_info.substr(port_delimiter+1).c_str() );
+    start_program ( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter-beginning_of_gameserver_info-1).c_str() , game_info.substr(port_delimiter+1,game_info.length()-port_delimiter-2).c_str() );
     file.close();
 }
 
@@ -631,6 +652,8 @@ void MainWindow::on_InstantChatButton_clicked()
     document.setObject(object);
     packet = (document.toJson(QJsonDocument::Compact));
 
+    this->enter_in_critical_section(0,1);
+
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(1000);
     if(m_Socket->waitForReadyRead(3000)) {
@@ -644,9 +667,22 @@ void MainWindow::on_InstantChatButton_clicked()
             msgbox.exec();
         }
     }
+
+    this->exit_from_critical_section(0,1);
 }
 
 void MainWindow::on_actionDisconnect_triggered()
 {
     this->close();
+    this->m_Socket->close();
+    this->m_UDPSocket->close();
+    QApplication::exit(1);      //restart application (show login screen again)
+}
+
+void MainWindow::on_actionExit_triggered()
+{
+    this->close();
+    this->m_Socket->close();
+    this->m_UDPSocket->close();
+    QApplication::exit(0);      //shut down application
 }

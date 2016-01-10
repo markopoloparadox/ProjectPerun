@@ -78,6 +78,7 @@ void gamelibrary::fullfill_table () {
         }
     }
     file.close();
+    file.clear();
     file2.close();
 }
 

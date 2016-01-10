@@ -152,6 +152,9 @@
               <property name="selectionBehavior">
                <enum>QAbstractItemView::SelectRows</enum>
               </property>
+              <property name="sortingEnabled">
+               <bool>false</bool>
+              </property>
               <property name="columnCount">
                <number>3</number>
               </property>
@@ -178,10 +181,6 @@
         </item>
        </layout>
        <zorder></zorder>
-       <zorder>horizontalSpacer</zorder>
-       <zorder>verticalSpacer</zorder>
-       <zorder>InstantChatButton</zorder>
-       <zorder>tableWidget</zorder>
       </widget>
       <widget class="QWidget" name="tab_3">
        <attribute name="title">
@@ -203,7 +202,11 @@
          </widget>
         </item>
         <item>
-         <widget class="QListWidget" name="listWidget"/>
+         <widget class="QListWidget" name="listWidget">
+          <property name="sortingEnabled">
+           <bool>true</bool>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -226,6 +229,7 @@
     </property>
     <addaction name="actionMy_Stats"/>
     <addaction name="actionDisconnect"/>
+    <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -246,7 +250,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionDisconnect">
    <property name="text">
-    <string>Exit</string>
+    <string>Log out</string>
    </property>
   </action>
   <action name="actionHelp">
@@ -262,6 +266,11 @@
   <action name="actionMy_Stats">
    <property name="text">
     <string>My Stats</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
    </property>
   </action>
  </widget>
