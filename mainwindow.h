@@ -60,6 +60,8 @@ private slots:
 
     void on_actionExit_triggered();
 
+    void on_tableWidget_cellDoubleClicked(int row, int column);
+
 private:
     QTcpSocket* m_Socket;
     QUdpSocket* m_UDPSocket;
@@ -71,12 +73,12 @@ private:
     qint16 m_Port;
     Ui::MainWindow *ui;
     bool adminMode;
-    bool right;
-    bool flags[2]={};
+    volatile bool right;        //variable has to be declared with 'volatile' qualifier because state (it's content) can be changed outside the thread which is checking it's value
+    volatile bool flags[2];     //reason for using 'volatile' qualifier is same as previous one
     void send_notification_message (short tID, const char* custom_status, char* played_game_name, char* gameserver_info);
-    void enter_in_critical_section (short tID1, short tID2);
-    void exit_from_critical_section (short tID1, short tID2);
     void showGameStats (QString email);
+    void enter_in_critical_section (bool tID1);
+    void exit_from_critical_section (bool tID1);
 };
 
 void outer_function (void *arg);

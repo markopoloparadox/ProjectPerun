@@ -20,7 +20,7 @@ struct tPath {
     char customExecutableParameters[100];
 };
 
-int binarySearch (std::fstream &file,const char* value,int first,int last);
+int binarySearch (std::fstream &file,const char* value,int first,int last, short recordSize);
 
 int binarySearchWrapper (std::fstream &file,const char* processName);
 

@@ -30,6 +30,7 @@ private slots:
 
 private:
     Ui::gamelibrary *ui;
+    short numOfRows;
     void fullfill_table();
 };
 

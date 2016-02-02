@@ -27,7 +27,7 @@ void start_program (const char* prog_name,const char* ip=NULL,const char* port=N
     }
 
     file.close();
-    if (pathNotDefined==false) {
+    if (pathNotDefined==false || strcmp(pathRecord.path,"")==0) {   //record about some game can be stored locally if user removes game from his list of games (if he set game path to nullString)
         QMessageBox msgBox;
         msgBox.setText("Define game's path in settings to join game over your friend");
         msgBox.exec();

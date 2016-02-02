@@ -97,6 +97,11 @@ function CreateChat(username, socket) {
 }
 
 function ReadDatabase() {
+	var stat1 = fs.statSync(__dirname + "\\BazaKorisnika.json");
+	if (stat1.size == 0) {	//in case that file is totally empty (it doesn't even contain '[]')
+		return [];
+	}
+
     var TextFromFile = fs.readFileSync(__dirname + "\\BazaKorisnika.json", "utf8");
     var users = JSON.parse(TextFromFile);
     return users;
@@ -512,6 +517,7 @@ var server = net.createServer(function(socket) {
 
 });
 server.listen(1337, '127.0.0.1');
+
 fs.appendFileSync(__dirname + "\\GameActivity.json","");	//creates file in which will be stored game statistics (if it does not exists)
 fs.appendFileSync(__dirname + "\\BazaKorisnika.json","");	//creates file in which will be stored list of users and their basic info (if it does not exists)
 fs.appendFileSync(__dirname + "\\gameslist.dat","");		//creates file in which will be stored game info which will be sent to users (if it does not exists)

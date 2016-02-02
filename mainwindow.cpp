@@ -42,6 +42,9 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     this->adminMode = aMode;
     this->m_Name = name;
 
+    this->right = 0;    //at the beginning, first (main) thread will be prior one
+    this->flags[0] = this->flags[1] = 0;    //initialising that none of threads want to do something what is in critical section
+
     m_UDPSocket = new QUdpSocket();
     m_UDPSocket->bind(this->m_Port);
     qDebug() << m_Port;
@@ -66,6 +69,7 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     std::fstream file;
     file.open("gamepath.dat",std::ios::app); //create file if it does not exists; otherwise do nothing (it won't be changed)
     file.close();
+
     if ( !this->update_supported_games_list() ) {          //checks if there's any newer version of gameslist.dat (if there is, server sends it to us)
         QMessageBox msgBox;
         msgBox.setText("Error has been occurred while receiving packet with most recent list of supported games! Try again manually by clicking \"Check for Update\" button in \"Configure game library\" menu.");
@@ -94,23 +98,25 @@ void MainWindow::on_AddFriendButton_clicked(){
 
 }
 
-void MainWindow::enter_in_critical_section(short tID1, short tID2) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
-    flags[tID1]=1;
+void MainWindow::enter_in_critical_section(bool tID1) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
+    bool tID2 = !tID1;
+    flags[tID1] = 1;
     while (flags[tID2]!=0) {
         if (right==tID2) {
-            flags[tID1]=0;
+            flags[tID1] = 0;
             while (right==tID2) {
                 ;
-                }
-            flags[tID1]=1;
             }
+            flags[tID1] = 1;
         }
     }
+}
 
-void MainWindow::exit_from_critical_section(short tID1, short tID2) {     //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function releases resources that were locked by tID1 thread and now it becomes available for another thread
-    right=tID2;
-    flags[tID1]=0;
-    }
+void MainWindow::exit_from_critical_section(bool tID1) {     //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function releases resources that were locked by tID1 thread and now it becomes available for another thread
+    bool tID2 = !tID1;
+    right = tID2;
+    flags[tID1] = 0;
+}
 
 void MainWindow::refresh_friends_list(){
     QJsonObject object;
@@ -121,7 +127,7 @@ void MainWindow::refresh_friends_list(){
     document.setObject(object);
     packet = (document.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(0,1);
+    this->enter_in_critical_section(0);
 
     m_Socket->write(packet);
     m_Socket->flush();
@@ -130,7 +136,7 @@ void MainWindow::refresh_friends_list(){
 
     packet = m_Socket->readAll();
 
-    this->exit_from_critical_section(0,1);
+    this->exit_from_critical_section(0);
 
     document = QJsonDocument::fromJson(packet.constData());
     object = document.object();
@@ -183,12 +189,12 @@ void MainWindow::CheckForMsg(){
     QJsonDocument document;
     QByteArray packet;
 
-    this->enter_in_critical_section(0,1);
+    this->enter_in_critical_section(0);
 
     packet.resize(m_UDPSocket->pendingDatagramSize());
     m_UDPSocket->readDatagram(packet.data(), packet.size());
 
-    this->exit_from_critical_section(0,1);
+    this->exit_from_critical_section(0);
 
     document = QJsonDocument::fromJson(packet.constData());
     object = document.object();
@@ -219,17 +225,23 @@ void MainWindow::check_game_status()
 {
     char *running_game, *gameserver_info;
     while (true) {
-        gameserver_info = NULL;//= new char [22];
+        gameserver_info = NULL; //= new char [22];
+
+        this->enter_in_critical_section(1);
+
         running_game = game_running_in_background();
+
+        this->exit_from_critical_section(1);
+
         std::fstream file;
         if (running_game != NULL) {
             if (this->adminMode == true) {
                 //gameserver_info = NULL;
                 file.open("lock.dat",std::ios::app);    //file is now locked - that means that network tracing will now start because game was detected
+                //gameserver_info = found_gameserver_address(running_game); //this line is commented because some time has to go after lock file is locked (because background service is checking it every 10 seconds, so in many cases it won't be detected instantly and program would try to find IP address of gameserver in file that does not even exist (or in file with data from previous time when network traffic was tracked))
             }
-            //gameserver_info = found_gameserver_address(running_game);
+            send_notification_message(1,NULL,running_game,gameserver_info);
         }
-        send_notification_message(1,NULL,running_game,gameserver_info);
         sleep(10);
         while (running_game!=NULL && strcmp(game_running_in_background(running_game),running_game)==0) {
             qDebug() << "igra radi";
@@ -280,11 +292,11 @@ void MainWindow::check_game_status()
 }
 
 void MainWindow::send_notification_message (short tID, const char* custom_status=NULL, char* played_game_name=NULL, char* gameserver_info=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
-    if (custom_status==NULL && played_game_name==NULL && gameserver_info==NULL) {   //if we haven't changed custom status and are not playing on any game
+/*    if (custom_status==NULL && played_game_name==NULL && gameserver_info==NULL) {   //if we haven't changed custom status and are not playing on any game
         if (this->current_game == "") {     //if we haven't also played anything 10 seconds before - we don't need to notify others that we are not playing anything because they already know that
             return;
         }
-    }
+    }   */
 
     if (custom_status==NULL) {              //if user's GAME status was changed
         if (played_game_name==NULL) {           //if user stoped playing current game
@@ -293,11 +305,17 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
         else {      //if user started playing game or remained playing current game on another game server
             std::fstream file;
             tGames gameRecord;
+
+            this->enter_in_critical_section(tID);
+
             file.open("gameslist.dat",std::ios::in | std::ios::binary);
             int position = binarySearchWrapper(file,played_game_name);
             file.seekg(position*sizeof(tGames));
             file.read( (char*)&gameRecord,sizeof(tGames) );
             file.close();
+
+            this->exit_from_critical_section(tID);
+
             if (gameserver_info==NULL) {        //if user started game but isn't on any server or (s)he disconnected from current and isn't playing on any right now
                 this->current_game = QString::fromUtf8(gameRecord.fullName);
             }
@@ -319,7 +337,7 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(tID,!tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
+    this->enter_in_critical_section(tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
 
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(300);
@@ -329,7 +347,7 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
     m_Socket->waitForReadyRead(100);
     packet = m_Socket->readAll();
 
-    this->exit_from_critical_section(tID,!tID);
+    this->exit_from_critical_section(tID);
 
     object = QJsonDocument::fromJson(packet.constData());
     user = object.object();
@@ -368,6 +386,9 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
     std::fstream file, file2;
     tPath recordPath;
     tGames recordGame;
+
+    this->enter_in_critical_section(0);
+
     file.open("gamepath.dat",std::ios::in | std::ios::binary);
     file2.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (true) {
@@ -389,6 +410,9 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
     file.close();
     file.clear();
     file2.close();
+
+    this->exit_from_critical_section(0);
+
 }
 
 void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
@@ -396,6 +420,9 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
     std::fstream file, file2;
     tPath recordPath;
     tGames recordGame;
+
+    this->enter_in_critical_section(0);
+
     file.open("gamepath.dat",std::ios::in | std::ios::binary);
     file2.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (true) {
@@ -407,6 +434,9 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
             continue;
         }
         short position = binarySearchWrapper(file2,recordPath.processName);
+        if (position==-1) { // some game can appear in gamepath.dat as registered on user's computer, but it's not in the list of supported games if support for that game is eventaully removed or process name is changed
+            continue;
+        }
         file2.seekp(position*sizeof(tGames));
         file2.read( (char*)&recordGame,sizeof(tGames) );
         if (strcmp( item->text().toUtf8() , recordGame.fullName )==0) {
@@ -416,11 +446,17 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
     }
     file.close();
     file2.close();
+
+    this->exit_from_critical_section(0);
+
 }
 
 short MainWindow::update_supported_games_list () {  //0...error, 1...current file is up to date, 2...new file has been received   //downloads new version of gameslist.dat if available
     int size;
     std::fstream file;
+
+    this->enter_in_critical_section(0);
+
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
     if (!file) {
         file.clear();
@@ -431,6 +467,8 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         size=file.tellg();
     }
     file.close();
+
+    this->exit_from_critical_section(0);
 
     std::stringstream datetime;
 
@@ -482,37 +520,45 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
     QJsonObject user;
     user["connection"] = "0018";
     user["size"] = size;
-    user["datetime"] = datetime.str().c_str();  //if there is no file yet, then datetime of last modification won't be sent
+    user["datetime"] = datetime.str().c_str();  //if there is no file yet, then datetime of last modification is undefined and very old date is sent
 
     //qDebug() << "ADAWDWADAWDAW";
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(0,1);
+    this->enter_in_critical_section(0);
 
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(1000);
-    qDebug() << "Request for update info about gameslist.data has been successfully sent!";
+    qDebug() << "Request for update info about gameslist.dat has been successfully sent!";
 
     packet.clear();
     while(m_Socket->waitForReadyRead(100)) {
         packet += m_Socket->readAll();
     }
 
-    this->exit_from_critical_section(0,1);
+    this->exit_from_critical_section(0);
 
     object = QJsonDocument::fromJson(packet.constData());
     user = object.object();
+
     if (user["connection"] == "0019") { //file is up to date
         qDebug () << "You already have the latest version of list of supported games.";
         return 1;
     }
     else if (user["connection"] == "0020") {     //if received packet contains most recent file with supported games
+        this->enter_in_critical_section(0);
+
         file.open("gameslist.dat",std::ios::out | std::ios::binary);
-        QByteArray data;    //received stringified data (\0 became \u0000, numbers are not in numeric type) has to be converted back to
+        QByteArray data;    //received stringified data (\0 became \u0000 and numbers are not in numeric type) has to be converted back to
         data.setRawData( user["file"].toString().toStdString().c_str() , packet.length()-2-45 );    //size of stringified file data is equal to size of whole packet -2 (what are last 2 characters in packet: "} ) -41 (there are 45 characters in packet before file data (including "file" key))
-        file.write( data.data(),user["size"].toString().toInt() );      //user["size"] is in non-numeric format, so it has first to be converted in string and then that string can be converted to integer (otherwise would 4/8 bytes of user["size"] be converted to integer)
+//char* ptr = new char [user["size"].toString().toInt()];
+//        memcpy(ptr,data,user["size"].toString().toInt());     //data.data()   is causing program to crash
+
+        file.write( data , user["size"].toString().toInt() );      //user["size"] is in non-numeric format, so it has first to be converted in string and then that string can be converted to integer (otherwise would 4/8 bytes of user["size"] be converted to integer)
         file.close();
+        this->exit_from_critical_section(0);
+
         qDebug () << "File has been successfully downloaded!";
         return 2;
     }
@@ -542,7 +588,7 @@ void MainWindow::showGameStats(QString email) {
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(0,1);
+    this->enter_in_critical_section(0);
 
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(300);
@@ -554,7 +600,7 @@ void MainWindow::showGameStats(QString email) {
         packet += m_Socket->readAll();
     }
 
-    this->exit_from_critical_section(0,1);
+    this->exit_from_critical_section(0);
 
     QJsonObject object2;
     QJsonDocument document;
@@ -606,6 +652,9 @@ void MainWindow::on_JoinFriendButton_clicked()
     }
 
     std::fstream file;
+
+    this->enter_in_critical_section(0);
+
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
     tGames gameRecord;
     while (true) {
@@ -613,7 +662,7 @@ void MainWindow::on_JoinFriendButton_clicked()
         if (file.eof()==true) {
             file.close();
             file.clear();
-            msgBox.setText("User is playing some game that isn't listed in your game library! Check if there's any newer version available.");
+            msgBox.setText("User is playing some game that isn't listed in your game library! Check if there's any newer version of supported games list available.");
             msgBox.exec();
             return;
         }
@@ -624,6 +673,8 @@ void MainWindow::on_JoinFriendButton_clicked()
     int port_delimiter = game_info.find(':');
     start_program ( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter-beginning_of_gameserver_info-1).c_str() , game_info.substr(port_delimiter+1,game_info.length()-port_delimiter-2).c_str() );
     file.close();
+
+    this->exit_from_critical_section(0);
 }
 
 void MainWindow::on_actionMy_Stats_triggered()
@@ -652,7 +703,7 @@ void MainWindow::on_InstantChatButton_clicked()
     document.setObject(object);
     packet = (document.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(0,1);
+    this->enter_in_critical_section(0);
 
     m_Socket->write(packet);
     m_Socket->waitForBytesWritten(1000);
@@ -668,7 +719,7 @@ void MainWindow::on_InstantChatButton_clicked()
         }
     }
 
-    this->exit_from_critical_section(0,1);
+    this->exit_from_critical_section(0);
 }
 
 void MainWindow::on_actionDisconnect_triggered()
@@ -685,4 +736,9 @@ void MainWindow::on_actionExit_triggered()
     this->m_Socket->close();
     this->m_UDPSocket->close();
     QApplication::exit(0);      //shut down application
+}
+
+void MainWindow::on_tableWidget_cellDoubleClicked(int row, int column)
+{
+    this->on_InstantChatButton_clicked();
 }

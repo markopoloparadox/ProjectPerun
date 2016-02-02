@@ -23,16 +23,16 @@ char* game_running_in_background(char* process_name) {  //background...does not 
             while (true) {      //read active processes and check if any of them satisfies condition
                 char tmp[50];
                 std::wcstombs(tmp,pe32.szExeFile,50);    //converts process name which is in UTF-16 Windows format into 8-bit ASCII and store it into process_name
-                for (int i=0 ; tmp[i]!='\0' ; i++) {   //convert process name into lowercase (because MS DOS derived operating system does not make changes between upper and lower letters in file names)
+/*                for (int i=0 ; tmp[i]!='\0' ; i++) {   //convert process name into lowercase (because MS DOS derived operating system does not make changes between upper and lower letters in file names)
                     if (tmp[i]>=65 && tmp[i]<=90) {
                         tmp[i]+=32;
                     }
-                }
+                }*/
                 if (game_specified==false) {
                     if( binarySearchWrapper(file,tmp)!=-1 ) {  //Check if currently observed process is game which is supported
                         //Looks like some game is running!
                         found = true;
-                        process_name = new char [50];    //assume that nothing is found
+                        process_name = new char [50];
                         strcpy(process_name,tmp);
                         //We're done...
                         break;
@@ -53,7 +53,9 @@ char* game_running_in_background(char* process_name) {  //background...does not 
 
         ::CloseHandle(hSnapshot);
     }
-    file.close();
+    if (game_specified==false) {
+        file.close();
+    }
 
     if (found==true) {
         return process_name;
@@ -296,6 +298,7 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
                 if (numOfTabs==2) {     //then check if there were exactly 2 tab spaces before (because all other XML element inside of ending block have 3 or more tab spaces at the beginning of line)
                     file.close();   //we won't need this file anymore
                     qDebug () << "no valid server information found";
+                    delete [] gameprocess_name;     //this pointer variable has got new pointing address at the beginning of this function - content of that new location has to be deleted and in routine (from which was this function called), pointing variable will still have address of location to which it was pointing before (it's content won't be changed) as pointer was forwarded by value (not by reference)
                     return NULL;    //and exit function - no appropriate address was found (game wasn't played via Internet)
                 }
                 else {  //if there were more than 2 tab spaces in that line
@@ -388,6 +391,7 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
                 strcat(ip_and_port,":");    //IP address and port number are usually divided with semi-colon sign (":")
                 strcat(ip_and_port,port);   //attach on that string port number, too
                 qDebug () << "valid server found: " << ip_and_port;
+                delete [] gameprocess_name;     //this pointer variable has got new pointing address at the beginning of this function - content of that new location has to be deleted and in routine (from which was this function called), pointing variable will still have address of location to which it was pointing before (it's content won't be changed) as pointer was forwarded by value (not by reference)
                 return ip_and_port;     //return that IP address with port number
             }
         }
