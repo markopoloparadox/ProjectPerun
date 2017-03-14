@@ -4,37 +4,56 @@
 
 #include "loginwindow.h"
 #include <QApplication>
+#include <QProcess>
 #include <fstream>
 #define LOCKFILE "lock.dat"
+
+#if defined(_WIN32)
+std::string exec(QStringList cmdRows, bool returnOutput = false) {  // this function executes given command(s) for execution in shell and also returns its output result if returnOutput parameter value is set to True (warning: if output result consist of many lines, only last one will be returned!) - primary reason for creating this function was to get rid of batch files that were stored on disk and then ran - unfortunately, as this application is also using VBScript for establishing background services, it is not possible to eliminate usage of stored scripts on distributions of Windows operating system
+    QProcess process1;
+
+    process1.start("cmd");
+    std::string commands = (cmdRows.join('\n')  + '\n').toStdString();
+    process1.write(commands.c_str(), commands.length());
+    process1.write("exit\n", 5);
+
+    if (returnOutput) {
+        QByteArray buffer;
+        bool retval = false;
+        while ((retval = process1.waitForFinished()));
+        QByteArray result = process1.readAll();
+        int end = result.lastIndexOf("\r\nexit\n");
+        int beg = result.lastIndexOf("\n", end)+1;
+        return result.mid(beg, end-beg).toStdString();
+    }
+    else {
+        return NULL;
+    }
+}
+#endif
 
 bool running_as_administrator () {      //if user can successfully run following command, he is administrator (so (s)he will probably be able to run them again in future)
 #if defined (__linux__)
     return !getuid();   //returns 0 if user is root (superuser)
 #endif
 #if defined (_WIN32)
-    std::stringstream output, input, recognition_pattern;
-    input << "netsh wfp capture start cab=off traceonly=off keywords=none file=network_traffic && netsh wfp capture stop";
-    recognition_pattern << "Run as administrator";
-    std::shared_ptr<FILE> pipe(popen(input.str().c_str(), "r"), pclose);
-    if (!pipe) {    //if message could not be returned, then we will assume that application is not run as administrator (even if it is, we won't use Shell commands because Operating System obviously doesn't respond)
-        return false;
-    }
-    char buffer[256];
-    while (!feof(pipe.get())) {
-        if (fgets(buffer, 256, pipe.get()) != NULL)
-            output << buffer;       //transfering output data from Shell to output stringstream object
-    }
-    if (output.str().find(recognition_pattern.str().c_str(),0)==-1) {   //if Shell doesn't return error message which contains text about lack of privileges
-        return true;
-    }
-    else {
-        return false;
-    }
+    QStringList script;
+    script << "@echo off"
+           << "goto check_Permissions"
+           << ":check_Permissions"
+           << "    net session >nul 2>&1"
+           << "    if %errorLevel% == 0 ("
+           << "        echo 1"
+           << "    ) else ("
+           << "       echo 0"
+           << "   )";
+    return exec(script, true) == "1";
 #endif
 }
 
 int main(int argc, char *argv[])
 {
+    QApplication::addLibraryPath(".");
     bool adminMode = running_as_administrator();
 
     if (adminMode==true) {

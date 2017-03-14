@@ -60,7 +60,7 @@ void LoginWindow::RegisterAnAccount() {
      * vrijeme(timeout je određen brojem u zagradi).
      *
     */
-    m_Socket->connectToHost("127.0.0.1", 1337);
+    m_Socket->connectToHost("46.101.247.168", 1337);
     if(m_Socket->waitForConnected(1000))
         qDebug() << "Connected!";
     else {
@@ -150,7 +150,7 @@ void LoginWindow::Login() {
         return;
     }
 
-    m_Socket->connectToHost("127.0.0.1", 1337);
+    m_Socket->connectToHost("46.101.247.168", 1337);
     if(m_Socket->waitForConnected(1000))
         qDebug() << "Connected!";
     else {

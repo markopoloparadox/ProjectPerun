@@ -2,6 +2,7 @@
 var net = require("net");
 var fs = require("fs");
 var dgram = require('dgram');
+var passwordHash = require('password-hash');
 
 var clients = [];
 var chats = [];
@@ -97,19 +98,19 @@ function CreateChat(username, socket) {
 }
 
 function ReadDatabase() {
-	var stat1 = fs.statSync(__dirname + "\\BazaKorisnika.json");
+	var stat1 = fs.statSync(__dirname + "/BazaKorisnika.json");
 	if (stat1.size == 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		return [];
 	}
 
-    var TextFromFile = fs.readFileSync(__dirname + "\\BazaKorisnika.json", "utf8");
+    var TextFromFile = fs.readFileSync(__dirname + "/BazaKorisnika.json", "utf8");
     var users = JSON.parse(TextFromFile);
     return users;
 }
 
 function WriteToDatabase(users) {
     users = JSON.stringify(users);
-    fs.writeFile(__dirname + "\\BazaKorisnika.json", users, function (err) {
+    fs.writeFile(__dirname + "/BazaKorisnika.json", users, function (err) {
         if (err) return console.log(err);
     });
 }
@@ -136,7 +137,7 @@ function AddUserToDataBase(email, password, socket) {
         var friends = [];
         var user = new Object();
         user.email = email;
-        user.password = password;
+        user.password = passwordHash.generate(password);
         user.friends = friends;
         users.push(user);
 
@@ -160,7 +161,7 @@ function LoginUser(email, password, port, socket) {
         socket.write(JSON.stringify(post));
         return;
     } else {
-        if(users[index].password != password) {
+        if(passwordHash.verify(password, users[index].password) == false) {
             post.connection  = "0006";
 
             socket.write(JSON.stringify(post));
@@ -292,12 +293,12 @@ function RequestForGameStatistics (email, socket) {
 }
 
 function ReadGameStatistics(email) {
-	var stat1 = fs.statSync(__dirname + "\\GameActivity.json");
+	var stat1 = fs.statSync(__dirname + "/GameActivity.json");
 	if (stat1.size == 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		return [];
 	}
 
-    var TextFromFile = fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");
+    var TextFromFile = fs.readFileSync(__dirname + "/GameActivity.json", "utf8");
     var all_users = JSON.parse(TextFromFile);
 	for (var i=0 ; i<all_users.length ; i++)
 		if (all_users[i].user == email) {
@@ -309,12 +310,12 @@ function ReadGameStatistics(email) {
 
 function UpdateGameStatistics(email, game, time_played) {
 	var content;
-	var stat1 = fs.statSync(__dirname + "\\GameActivity.json");
+	var stat1 = fs.statSync(__dirname + "/GameActivity.json");
 	if (stat1.size == 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		content = [];
 	}
 	else {
-		var TextFromFile = fs.readFileSync(__dirname + "\\GameActivity.json", "utf8");																											//mozda nejde Sync???
+		var TextFromFile = fs.readFileSync(__dirname + "/GameActivity.json", "utf8");																											//mozda nejde Sync???
 		content = JSON.parse(TextFromFile);
 	}
 	var user_exists = false;
@@ -351,7 +352,7 @@ function UpdateGameStatistics(email, game, time_played) {
 		
 		content.push(obj);
 	}
-    fs.writeFile(__dirname + "\\GameActivity.json", JSON.stringify(content), function (err) {
+    fs.writeFile(__dirname + "/GameActivity.json", JSON.stringify(content), function (err) {
         if (err)	return console.log(err);
     });
 }
@@ -378,7 +379,7 @@ function AddFriendUser(email, socket) {
     }
 
     var users = ReadDatabase();
-    var index = FindUserByEmail(users, socket.name);
+    var index = FindUserByEmail(users, email);
 
 
     if(index == -1) {
@@ -516,8 +517,8 @@ var server = net.createServer(function(socket) {
     });
 
 });
-server.listen(1337, '127.0.0.1');
+server.listen(1337, '46.101.247.168');
 
-fs.appendFileSync(__dirname + "\\GameActivity.json","");	//creates file in which will be stored game statistics (if it does not exists)
-fs.appendFileSync(__dirname + "\\BazaKorisnika.json","");	//creates file in which will be stored list of users and their basic info (if it does not exists)
-fs.appendFileSync(__dirname + "\\gameslist.dat","");		//creates file in which will be stored game info which will be sent to users (if it does not exists)
+fs.appendFileSync(__dirname + "/GameActivity.json","");	//creates file in which will be stored game statistics (if it does not exists)
+fs.appendFileSync(__dirname + "/BazaKorisnika.json","");	//creates file in which will be stored list of users and their basic info (if it does not exists)
+fs.appendFileSync(__dirname + "/gameslist.dat","");		//creates file in which will be stored game info which will be sent to users (if it does not exists)

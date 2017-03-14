@@ -135,7 +135,8 @@ void gamelibrary::on_buttonBox_clicked(QAbstractButton *button)
                   break;
               }
               if (strcmp(selected_process.c_str(),pathRecord.processName)==0) {
-                  file.seekp(file.tellg()-sizeof(tPath),std::ios::beg);
+                  int filesize = file.tellg();
+                  file.seekp(filesize-sizeof(tPath),std::ios::beg);
                   break;
               }
           }

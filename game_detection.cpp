@@ -62,12 +62,16 @@ char* game_running_in_background(char* process_name) {  //background...does not 
     }
     else {
         if (game_specified==true) {     //if user exited game that he was playing till now
-            return "\0";        //can't return NULL because result will be used as parameter in strcmp(const char*,const char*) function (NULL value would result with crash)
+            return new char[1] {'\0'};        //can't return NULL because result will be used as parameter in strcmp(const char*,const char*) function (NULL value would result with crash)
         }
         else {              //if there is currently no game active (and none was played in last few seconds)
             return NULL;        //none game is found
         }
     }
+}
+
+void sleep(int seconds) {
+    Sleep(seconds * 1000);
 }
 #endif
 
@@ -267,7 +271,8 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
         file.open("network_traffic.xml",std::ios::app | std::ios::in);  //again we use append mode to catch potential error
     }
     file.seekg(0,std::ios::end);      //we will start from the end of file because answer is there (and if it isn't, then it also isn't in whole file (because most of file contains unnecessary data)
-    int i = file.tellg()-1;    //position from which is file pointer reading (it's necessary to set it one byte before EOF (end of file), so it won't read trash character which is behind range of file
+    int filesize = file.tellg();
+    int i =filesize-1;    //position from which is file pointer reading (it's necessary to set it one byte before EOF (end of file), so it won't read trash character which is behind range of file
     char searchedOne[200];       //that will be text we will look for (it will point to packet related to game we are playing (if we are playing any))
     short j;    //this will be used as index of character in string we are iterating through
     short searchedOneStrLen = strlen(gameprocess_name);     //string length of name of game process

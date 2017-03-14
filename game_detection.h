@@ -8,7 +8,9 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#if defined(__linux__)
 #include <unistd.h>
+#endif
 #include <memory>
 #include "funkcije.h"
 
@@ -21,6 +23,7 @@
 #include <Psapi.h>      //set of API functions related to program activity for Windows 7 and newer operating systems
 #include <TlHelp32.h>
 
+void sleep(int seconds);
 #endif
 
 
