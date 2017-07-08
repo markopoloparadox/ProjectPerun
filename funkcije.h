@@ -12,6 +12,7 @@ struct tGames {
     char processName[50];
     char fullName[250];
     char multiplayerCommandLineArguments[100];
+    char registryKeyFullname[250];
 };
 
 struct tPath {

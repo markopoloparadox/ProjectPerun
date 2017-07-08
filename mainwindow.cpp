@@ -10,6 +10,83 @@
 #include <windows.h>
 #include <tchar.h>
 #include <strsafe.h>
+#include <QSettings>
+
+QString getFileLocationFromRegistryKey(QString registryKey) {
+    int lastBackslashPos = registryKey.lastIndexOf('\\');
+    QString path = registryKey.mid(0, lastBackslashPos);
+    QString keyname = registryKey.mid(lastBackslashPos+1);
+
+    QSettings settings(
+        path,
+        QSettings::NativeFormat
+    );
+    if (keyname.length() == 0) {
+        return settings.value("Default").toString();
+    }
+    else {
+        return settings.value(keyname).toString();
+    }
+}
+
+void autoDetectGames() {
+    tGames gameRecord;
+    tPath gamePath;
+    std::fstream fileAllGames;
+    std::fstream fileMyGames;
+    QMap<QString, tPath> assocList;
+    fileMyGames.open("gamepath.dat", std::ios::in | std::ios::binary);
+    while (true) {
+        fileMyGames.read((char*)&gamePath, sizeof(tPath));
+        if (fileMyGames.eof()==true) {
+            break;
+        }
+        assocList.insert(gamePath.processName, gamePath);
+    }
+    fileMyGames.clear();
+    fileMyGames.close();
+    fileAllGames.open("gameslist.dat", std::ios::in | std::ios::out | std::ios::binary);    //the content will be removed when file will be released
+    while (true) {
+        bool found = false;
+        fileAllGames.read((char*)&gameRecord, sizeof(tGames));
+        if (fileAllGames.eof()==true) {
+            break;
+        }
+        QString lastKnownLocation = assocList.find(gameRecord.processName).value().path;
+        if (!lastKnownLocation.isEmpty()) {
+            if (QFile::exists(lastKnownLocation)) {
+                found = true;
+            }
+        }
+        if (!found) {
+            QString gameLocationFromRegistry = getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
+            if (gameLocationFromRegistry.isEmpty()) {
+                if (!lastKnownLocation.isEmpty()) {
+                    assocList.remove(gameRecord.processName);
+                }
+            }
+            else {
+                if (!gameLocationFromRegistry.endsWith(".exe")) {
+                    if (!gameLocationFromRegistry.endsWith("\\")) {
+                        gameLocationFromRegistry.append("\\");
+                    }
+                        gameLocationFromRegistry.append(gameRecord.processName);
+                }
+                if (QFile::exists(gameLocationFromRegistry)) {
+                    strcpy(gamePath.processName, gameRecord.processName);
+                    strcpy(gamePath.path, gameLocationFromRegistry.toStdString().c_str());
+                    strcpy(gamePath.customExecutableParameters, "");
+                    assocList.insert(gameRecord.processName, gamePath);
+                }
+            }
+        }
+    }
+    fileMyGames.open("gamepath.dat", std::ios::out | std::ios::binary);
+    for (QMap<QString, tPath>::iterator i = assocList.begin(); i != assocList.end(); i++) {
+        fileMyGames.write((char*)&i.value(), sizeof(tPath));
+    }
+    fileMyGames.close();
+}
 #endif
 
 #if defined (__linux__)
@@ -76,6 +153,8 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
         msgBox.exec();
     }
     this->refresh_games_list();     //refreshes table in "My Games" tab with games that user owns (for which (s)he defined path)
+
+    autoDetectGames();
 
     listener_thread = new std::thread (outer_function,this);
 
@@ -522,7 +601,6 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
     user["size"] = size;
     user["datetime"] = datetime.str().c_str();  //if there is no file yet, then datetime of last modification is undefined and very old date is sent
 
-    //qDebug() << "ADAWDWADAWDAW";
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
 
@@ -554,9 +632,9 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         data.setRawData( user["file"].toString().toStdString().c_str() , packet.length()-2-45 );    //size of stringified file data is equal to size of whole packet -2 (what are last 2 characters in packet: "} ) -41 (there are 45 characters in packet before file data (including "file" key))
 //char* ptr = new char [user["size"].toString().toInt()];
 //        memcpy(ptr,data,user["size"].toString().toInt());     //data.data()   is causing program to crash
-
-        file.write( data , user["size"].toString().toInt() );      //user["size"] is in non-numeric format, so it has first to be converted in string and then that string can be converted to integer (otherwise would 4/8 bytes of user["size"] be converted to integer)
+        file.write( user["file"].toString().toStdString().c_str() , user["size"].toString().toInt() );
         file.close();
+
         this->exit_from_critical_section(0);
 
         qDebug () << "File has been successfully downloaded!";

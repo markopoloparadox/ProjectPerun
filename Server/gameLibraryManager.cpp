@@ -7,6 +7,7 @@ struct tGames {
 	char processName[50];
 	char fullName[250];
 	char multiplayerCommandLineArguments[100];
+	char registryName[250];
 } record;
 
 void listAllRecords () {
@@ -20,7 +21,8 @@ void listAllRecords () {
 		cout << "Game #" << ++counter << endl
 			 << "\tProcess Name: " << record.processName << endl
 			 << "\tFull Name: " << record.fullName << endl
-			 << "\tCommand Line Arguments for joining server: " << record.multiplayerCommandLineArguments << endl;
+			 << "\tCommand Line Arguments for joining server: " << record.multiplayerCommandLineArguments << endl
+			 << "\tRegistry Name: " << record.registryName << endl;
 	}
 	file.close();
 	file.clear();
@@ -63,6 +65,8 @@ void addNewRecord () {
 		 << "set %%port%% on position where normally is port of remote gameserver" << endl
 		 << ": ";
 	cin.getline(record.multiplayerCommandLineArguments,100);
+	cout << "Enter registry name that contains path to executable: " << endl;
+	cin.getline(record.registryName,250);
 	fstream file;
 	file.open("gameslist.dat",ios::out | ios::in | ios::binary);
 	file.seekg(0,ios::end);
@@ -124,6 +128,8 @@ void editExistingRecord () {
 		 << "set %%port%% on position where normally is port of remote gameserver" << endl
 		 << ": ";
 	cin.getline(record.multiplayerCommandLineArguments,100);
+	cout << "Enter new registry name that contains path to executable: " << endl;
+	cin.getline(record.registryName,250);
 	fstream file;
 	file.open("gameslist.dat",ios::in | ios::out | ios::binary);
 	file.seekg(0,ios::end);
