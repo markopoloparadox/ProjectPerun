@@ -10,6 +10,14 @@ CONFIG += c++14
 QMAKE_CXXFLAGS += -std=c++0x -pthread
 LIBS += -pthread
 
+win32-g++:!contains(QMAKE_HOST.arch, x86_64) {
+    LIBS += "C:/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/Lib/user32.lib"
+    LIBS += "C:/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/Lib/Gdi32.lib"
+} else {
+    LIBS += "C:/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/Lib/x64/user32.lib"
+    LIBS += "C:/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/Lib/x64/Gdi32.lib"
+}
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = ProjectPerun

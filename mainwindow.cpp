@@ -5,12 +5,94 @@
 #include <cstring>
 #include <QString>
 #include <QByteArray>
+#include <QDateTime>
 
 #if defined (_WIN32)
 #include <windows.h>
 #include <tchar.h>
 #include <strsafe.h>
 #include <QSettings>
+
+HBITMAP GetScreenBmp(HDC hdc) {
+    // Get screen dimensions
+    int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int nScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    // Create compatible DC, create a compatible bitmap and copy the screen using BitBlt()
+    HDC hCaptureDC = CreateCompatibleDC(hdc);
+    HBITMAP hBitmap = CreateCompatibleBitmap(hdc, nScreenWidth, nScreenHeight);
+    HGDIOBJ hOld = SelectObject(hCaptureDC, hBitmap);
+    BOOL bOK = BitBlt(hCaptureDC, 0, 0, nScreenWidth, nScreenHeight, hdc, 0, 0, SRCCOPY | CAPTUREBLT);
+
+    SelectObject(hCaptureDC, hOld); // always select the previously selected object once done
+    DeleteDC(hCaptureDC);
+    return hBitmap;
+}
+
+void HandleHotkeys(void *arg) {
+    Ui::MainWindow *ui = (Ui::MainWindow*)arg;
+    if (RegisterHotKey(NULL, 1, MOD_ALT | 0x4000, 0x42)) {
+        qDebug() << "Hotkey is successfully registered, using MOD_NOREPEAT flag";
+    }
+    MSG msg = {0};
+    while (GetMessage(&msg, NULL, 0, 0) != 0) {
+        QString processNameOfCurrentGame = ui->currentlyPlayingTBox->whatsThis();
+        int extensionPosition = processNameOfCurrentGame.lastIndexOf(".exe");
+        if (extensionPosition != -1) {
+            processNameOfCurrentGame = processNameOfCurrentGame.mid(0, extensionPosition);
+        }
+        if (msg.message == WM_HOTKEY && !processNameOfCurrentGame.isEmpty()) {
+            qDebug() << "WM_HOTKEY received";
+            HDC hdc = GetDC(0);
+
+            HBITMAP hBitmap = GetScreenBmp(hdc);
+
+            BITMAPINFO MyBMInfo = { 0 };
+            MyBMInfo.bmiHeader.biSize = sizeof(MyBMInfo.bmiHeader);
+
+            // Get the BITMAPINFO structure from the bitmap
+            if (0 == GetDIBits(hdc, hBitmap, 0, 0, NULL, &MyBMInfo, DIB_RGB_COLORS)) {
+                qDebug() << "error" << endl;
+            }
+
+            // create the bitmap buffer
+            BYTE* lpPixels = new BYTE[MyBMInfo.bmiHeader.biSizeImage];
+
+            // Better do this here - the original bitmap might have BI_BITFILEDS, which makes it
+            // necessary to read the color table - you might not want this.
+            MyBMInfo.bmiHeader.biCompression = BI_RGB;
+
+            // get the actual bitmap buffer
+            if (0 == GetDIBits(hdc, hBitmap, 0, MyBMInfo.bmiHeader.biHeight, (LPVOID)lpPixels, &MyBMInfo, DIB_RGB_COLORS)) {
+                qDebug() << "error2" << endl;
+            }
+
+            if (lpPixels) {
+                QString currentDate = QDateTime::currentDateTime().toString("dd-MM-yyyy_hh-mm-ss");
+                QString imageName = processNameOfCurrentGame + "-" + currentDate + ".bmp";
+                qDebug() << "Screenshot will be stored with following name: " << imageName;
+                std::fstream file;
+                file.open(imageName.toStdString().c_str(), std::ios::out | std::ios::binary);
+                BITMAPFILEHEADER hdr;
+                hdr.bfOffBits = 54;
+                hdr.bfReserved1 = 0;
+                hdr.bfReserved2 = 0;
+                hdr.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFO) + GetSystemMetrics(SM_CXSCREEN)*GetSystemMetrics(SM_CYSCREEN) * 3;
+                hdr.bfType = 0x4d42;
+
+                file.write((char*)&hdr, sizeof(BITMAPFILEHEADER));
+                file.write((char*)&MyBMInfo, sizeof(MyBMInfo));
+                file.write((char*)lpPixels, MyBMInfo.bmiHeader.biSizeImage);
+
+                file.close();
+            }
+
+            DeleteObject(hBitmap);
+            ReleaseDC(NULL, hdc);
+            delete[] lpPixels;
+        }
+    }
+}
 
 QString getFileLocationFromRegistryKey(QString registryKey) {
     int lastBackslashPos = registryKey.lastIndexOf('\\');
@@ -136,6 +218,7 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     ui->currentStatusCBox->addItem("Busy");
     ui->currentStatusCBox->setCurrentText( this->custom_status = QString::fromUtf8("Online") );
     ui->currentlyPlayingTBox->setText( this->current_game = "" );
+    ui->currentlyPlayingTBox->setWhatsThis("");
     ui->tableWidget->verticalHeader()->hide();
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(0,QHeaderView::Stretch);
@@ -156,8 +239,9 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
 
     autoDetectGames();
 
-    listener_thread = new std::thread (outer_function,this);
+    gameActivityListenerThread = new std::thread (ListenGameActivity, this);
 
+    globalShortcutListenerThread = new std::thread(HandleHotkeys, ui);
 }
 
 MainWindow::~MainWindow(){      //destructor isn't called when form is closed because this form isn't called with Qt::WA_DeleteOnClose attribute
@@ -168,7 +252,8 @@ MainWindow::~MainWindow(){      //destructor isn't called when form is closed be
     m_UDPSocket->close();
     delete m_UDPSocket;
     delete ui;
-    delete listener_thread;     //if destructor is called, this would cause error because active thread must previously be finished and then catched with join() method
+    delete gameActivityListenerThread;     //if destructor is called, this would cause error because active thread must previously be finished and then catched with join() method
+    delete globalShortcutListenerThread;
 }
 
 void MainWindow::on_AddFriendButton_clicked(){
@@ -295,7 +380,7 @@ void MainWindow::on_actionConfigure_game_library_triggered()
     gameLibWin->show();
 }
 
-void outer_function (void *arg) {    //my compiler does not not allow that threaded function is class member (i.e. method), so this is workaround - people say that that it compiler's bug
+void ListenGameActivity (void *arg) {    //my compiler does not not allow that threaded function is class member (i.e. method), so this is workaround - people say that that it compiler's bug
     MainWindow *mainClass = static_cast<MainWindow*>(arg);
     mainClass->check_game_status();
 }
@@ -403,6 +488,7 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
             }
         }
         ui->currentlyPlayingTBox->setText(this->current_game);
+        ui->currentlyPlayingTBox->setWhatsThis(played_game_name);
     }
     else {      //if user changed his/her CUSTOM status
         this->custom_status = custom_status;

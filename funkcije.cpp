@@ -55,11 +55,11 @@ QString seconds_to_HMS(double durationDouble)
 {
   int duration = (int) durationDouble;
   QString res;
-  int seconds = (int) (duration % 60);
+  int seconds = duration % 60;
   duration /= 60;
-  int minutes = (int) (duration % 60);
+  int minutes = duration % 60;
   duration /= 60;
-  int hours = (int) (duration / 24);
+  int hours = duration;
   if(hours == 0)
       return QString("%1min:%2s").arg( QString::number(minutes).rightJustified(2,' ') ).arg( QString::number(seconds).rightJustified(2,'0') );
   if (minutes == 0)

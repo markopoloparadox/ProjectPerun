@@ -69,7 +69,8 @@ private:
     QString current_game;   //defines game which user currently plays - empty string if none is played
     QString m_Name;
     std::vector<ChatBox*> m_Chatvec;
-    std::thread *listener_thread;
+    std::thread *gameActivityListenerThread;
+    std::thread *globalShortcutListenerThread;
     qint16 m_Port;
     Ui::MainWindow *ui;
     bool adminMode;
@@ -81,6 +82,7 @@ private:
     void exit_from_critical_section (bool tID1);
 };
 
-void outer_function (void *arg);
+void ListenGameActivity (void *arg);
+void HandleHotkeys (void *arg);
 
 #endif // MAINWINDOW_H
