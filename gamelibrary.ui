@@ -71,6 +71,9 @@
  }
 </string>
            </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::SingleSelection</enum>
+           </property>
            <property name="rowCount">
             <number>0</number>
            </property>

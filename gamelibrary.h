@@ -3,7 +3,6 @@
 
 #include <QDialog>
 #include <QAbstractButton>
-#include "mainwindow.h"
 
 namespace Ui {
 class gamelibrary;
@@ -16,7 +15,7 @@ class gamelibrary : public QDialog
 public:
     explicit gamelibrary(QWidget *parent = 0);
     ~gamelibrary();
-    MainWindow *mainClass;
+    void fill_table();
 
 private slots:
 
@@ -31,7 +30,6 @@ private slots:
 private:
     Ui::gamelibrary *ui;
     short numOfRows;
-    void fullfill_table();
 };
 
 #endif // GAMELIBRARY_H

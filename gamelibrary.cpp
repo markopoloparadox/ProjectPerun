@@ -5,6 +5,7 @@
 #include "QMessageBox"
 #include <string>
 #include "funkcije.h"
+#include "mainwindow.h"
 
 #if defined (__linux__)
 QString home_path="/home";
@@ -19,25 +20,28 @@ gamelibrary::gamelibrary(QWidget *parent) :
     ui(new Ui::gamelibrary)
 {
     ui->setupUi(this);
+    ((MainWindow*)this->parent())->fileHandlingMutex.lock();
     std::fstream file;
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
     if (!file) {
         QMessageBox msgBox;
         msgBox.setText("File with names of supported games cannot be read. Check if the file \"gameslist.dat\" has been properly downloaded from the server.");
         msgBox.exec();
+        file.close();
+        ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
         return;
     }
     file.close();
+    ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
 
     this->numOfRows = 0;
-    this->fullfill_table();
-
-    this->mainClass = static_cast<MainWindow*>(parent);
+    this->fill_table();
 }
 
-void gamelibrary::fullfill_table () {
+void gamelibrary::fill_table () {
     tGames gameRecord;
     std::fstream file;
+    ((MainWindow*)this->parent())->fileHandlingMutex.lock();
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (this->numOfRows) {   //if there is any row remaining in table (which left before old table records were replaced with new ones), delete them
         ui->tableWidget->removeRow( --this->numOfRows );
@@ -82,6 +86,7 @@ void gamelibrary::fullfill_table () {
     file.close();
     file.clear();
     file2.close();
+    ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
     ui->tableWidget->setSortingEnabled(true);  //sorting is disabled before initial insertion (due to performanse which can be gained with binary search used for inserting game paths) - reason is that columns in this table will be represented sorted by Full game name and records in file are stored by Process name
     ui->tableWidget->sortByColumn(0,Qt::SortOrder::AscendingOrder);
 }
@@ -108,7 +113,7 @@ void gamelibrary::on_browseDestButton_clicked()
 //    QString path = fd.getExistingDirectory(this, tr("Select directory that contains valid executable file"),
 //                                                 home_path,
 //                                                 QFileDialog::DontResolveSymlinks);
-    path.resize(path.lastIndexOf('/'));
+    path.resize(path.lastIndexOf('/') + 1);
     ui->destPathTextBox->setText(path);
 }
 
@@ -125,6 +130,7 @@ void gamelibrary::on_buttonBox_clicked(QAbstractButton *button)
           std::string selected_process=ui->tableWidget->item(active_row,1)->text().toStdString();
           tPath pathRecord;
           std::fstream file;
+          ((MainWindow*)this->parent())->fileHandlingMutex.lock();
           file.open("gamepath.dat",std::ios::in | std::ios::out | std::ios::binary);
           while (true) {
               file.read( (char*)&pathRecord,sizeof(tPath) );
@@ -144,10 +150,11 @@ void gamelibrary::on_buttonBox_clicked(QAbstractButton *button)
           strcpy(pathRecord.customExecutableParameters , ui->custExecParam->text().toStdString().c_str());
           file.write( (char*)&pathRecord,sizeof(tPath) );
           file.close();
+          ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
           ui->tableWidget->item(active_row,2)->setText( ui->destPathTextBox->text() );
     }
     else {
-        mainClass->refresh_games_list();
+        ((MainWindow*)this->parent())->refresh_games_list();
         this->close();
     }
 }
@@ -160,6 +167,7 @@ void gamelibrary::on_tableWidget_currentCellChanged(int currentRow, int currentC
 //    ui->tableWidget->selectRow(currentRow); //no need for this anymore because in class constructor is now defined that there is no individual cell selection, but whole row selection
     std::fstream file;
     tPath pathRecord;
+    ((MainWindow*)this->parent())->fileHandlingMutex.lock();
     file.open("gamepath.dat",std::ios::in | std::ios::binary);
     while (true) {
         file.read( (char*)&pathRecord,sizeof(tPath) );
@@ -168,6 +176,7 @@ void gamelibrary::on_tableWidget_currentCellChanged(int currentRow, int currentC
             ui->custExecParam->clear();
             file.close();
             file.clear();
+            ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
             return;
         }
         if (strcmp(ui->tableWidget->item(currentRow,1)->text().toUtf8(),pathRecord.processName)==0) {
@@ -177,21 +186,10 @@ void gamelibrary::on_tableWidget_currentCellChanged(int currentRow, int currentC
         }
     }
     file.close();
+    ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
 }
 
 void gamelibrary::on_checkUpdateButton_clicked()
 {
-    QMessageBox msgBox;
-    switch ( mainClass->update_supported_games_list() ) {   //depending on result of called function, one of following cases will be executed
-        case 0:     //error has occurred
-            msgBox.setText("Error has been occurred while receiving packet with most recent list of supported games! Try again later.");
-            break;
-        case 1:     //current file is up to date
-            msgBox.setText("Current list of supported games is up to date!");
-            break;
-        case 2:     //newer file has been received
-            msgBox.setText("Newer version of list of supported games has been found and received!");
-            this->fullfill_table();
-    }
-    msgBox.exec();
+    ((MainWindow*)this->parent())->check_if_newer_games_list_exist();
 }

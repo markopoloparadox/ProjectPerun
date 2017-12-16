@@ -30,7 +30,8 @@ private:
     Ui::LoginWindow *ui;
     QTcpSocket* m_Socket;
     bool adminMode;
-
+    const char* const serverAddress = "165.227.174.7";
+    const ushort serverPort = 1337;
 };
 
 #endif // LOGINWINDOW_H

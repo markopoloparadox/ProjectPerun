@@ -60,7 +60,7 @@ void LoginWindow::RegisterAnAccount() {
      * vrijeme(timeout je određen brojem u zagradi).
      *
     */
-    m_Socket->connectToHost("46.101.247.168", 1337);
+    m_Socket->connectToHost(this->serverAddress, this->serverPort);
     if(m_Socket->waitForConnected(1000))
         qDebug() << "Connected!";
     else {
@@ -150,7 +150,7 @@ void LoginWindow::Login() {
         return;
     }
 
-    m_Socket->connectToHost("46.101.247.168", 1337);
+    m_Socket->connectToHost(this->serverAddress, this->serverPort);
     if(m_Socket->waitForConnected(1000))
         qDebug() << "Connected!";
     else {
@@ -164,7 +164,7 @@ void LoginWindow::Login() {
     QJsonDocument document;
     QByteArray packet;
     qsrand(QTime::currentTime().msec());
-    quint16 port = qrand() % 601 + 1400;
+    quint16 port = m_Socket->localPort();
 
     object["connection"] = "0004";
     object["email"] = email;

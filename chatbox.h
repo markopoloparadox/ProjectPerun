@@ -8,7 +8,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUdpSocket>
-#include <vector>
 #include <QJsonArray>
 
 namespace Ui {
@@ -20,9 +19,10 @@ class ChatBox : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit ChatBox(QJsonObject object, QTcpSocket *socket, QString name, QWidget *parent = 0);
+    explicit ChatBox(QJsonObject object, QTcpSocket *socket, QString name, QWidget *parent = 0, bool isGroupChat = false);
+    ChatBox::ChatBox(QTcpSocket *socket, QString name, QWidget *parent, bool isGroupChat = false);
     ~ChatBox();
-    int m_ChatId;
+    QString m_ChatId;
     void Update(QJsonObject object);
 
 public slots:
@@ -33,9 +33,7 @@ public slots:
 private:
     Ui::ChatBox *ui;
     QTcpSocket *m_Socket;
-    QString m_Users;
-    QJsonArray m_UsVec;
-
+    bool isGroupChat;
 };
 
 #endif // CHATBOX_H

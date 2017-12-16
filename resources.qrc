@@ -1,6 +1,9 @@
 <RCC>
     <qresource prefix="/text">
         <file>States.txt</file>
-        <file>appicon.rc</file>
     </qresource>
+    <qresource prefix="/sound">
+		<file>camera_shutter_sound.wav</file>
+		<file>message_notification_sound.wav</file>
+	</qresource>
 </RCC>

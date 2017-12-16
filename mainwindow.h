@@ -7,15 +7,17 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QTimer>
 #include <QUdpSocket>
+#include <QSound>
 #include <thread>
 #include <vector>
 #include <QListWidgetItem>
-#include "addfriend.h"
+#include <QMutex>
+#include <QMap>
+#include "ui_addfriend.h"
 #include "chatbox.h"
 #include "game_detection.h"
-#include "launch_game.h"
+#include "gamelibrary.h"
 #include "funkcije.h"
 
 namespace Ui {
@@ -31,16 +33,16 @@ public:
     ~MainWindow();
     void check_game_status();
     void refresh_games_list();
-    short update_supported_games_list ();
+    void check_if_newer_games_list_exist();
+    Ui::MainWindow *ui;
+    QSound *snd;
+    QMutex fileHandlingMutex;
+    const QString m_Name;
 
 public slots:
 
 private slots:
     void on_AddFriendButton_clicked();
-
-    void refresh_friends_list();
-
-    void CheckForMsg();
 
     void on_actionConfigure_game_library_triggered();
 
@@ -62,24 +64,32 @@ private slots:
 
     void on_tableWidget_cellDoubleClicked(int row, int column);
 
+    void onTcpMessageReceived();
+
 private:
     QTcpSocket* m_Socket;
-    QUdpSocket* m_UDPSocket;
     QString custom_status;  //defines custom status message which can user set and other can see (AFK, Selling piglets, Looking for match 2 vs 2)
     QString current_game;   //defines game which user currently plays - empty string if none is played
-    QString m_Name;
-    std::vector<ChatBox*> m_Chatvec;
+    std::vector<ChatBox*> chatGroupsVector;
+    QMap<QString, ChatBox*> privateChatMap;
     std::thread *gameActivityListenerThread;
     std::thread *globalShortcutListenerThread;
     qint16 m_Port;
-    Ui::MainWindow *ui;
     bool adminMode;
-    volatile bool right;        //variable has to be declared with 'volatile' qualifier because state (it's content) can be changed outside the thread which is checking it's value
-    volatile bool flags[2];     //reason for using 'volatile' qualifier is same as previous one
+    bool initialGamesListCheckingDone = false;
+    gamelibrary* gameLibWin;
+    Ui::AddFriend* addfriendbox;
     void send_notification_message (short tID, const char* custom_status, char* played_game_name, char* gameserver_info);
-    void showGameStats (QString email);
-    void enter_in_critical_section (bool tID1);
-    void exit_from_critical_section (bool tID1);
+    void showGameStats (QJsonObject object);
+    void process_new_chat_message (QJsonObject message);
+    void refresh_friends_list (QJsonObject message);
+    void requestGameActivityInfo (QString email);
+    void request_friends_list ();
+    void get_friends_list(QJsonObject message);
+    void update_supported_games_list(QJsonObject message, int packetSize);
+    QString getFileLocationFromRegistryKey(QString registryKey);
+    void autoDetectGames();
+    void start_program (const char* prog_name, const char* ip=NULL, const char* port=NULL);
 };
 
 void ListenGameActivity (void *arg);

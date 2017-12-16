@@ -4,8 +4,9 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT += core gui
 QT += network
+QT += multimedia
 CONFIG += c++14
 QMAKE_CXXFLAGS += -std=c++0x -pthread
 LIBS += -pthread
@@ -31,7 +32,6 @@ SOURCES += main.cpp\
     chatbox.cpp \
     gamelibrary.cpp \
     game_detection.cpp \
-    launch_game.cpp \
     funkcije.cpp
 
 HEADERS  += loginwindow.h \
@@ -39,7 +39,6 @@ HEADERS  += loginwindow.h \
     addfriend.h \
     chatbox.h \
     funkcije.h \
-    launch_game.h \
     game_detection.h \
     gamelibrary.h
 

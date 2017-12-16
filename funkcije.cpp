@@ -61,10 +61,11 @@ QString seconds_to_HMS(double durationDouble)
   duration /= 60;
   int hours = duration;
   if(hours == 0)
-      return QString("%1min:%2s").arg( QString::number(minutes).rightJustified(2,' ') ).arg( QString::number(seconds).rightJustified(2,'0') );
-  if (minutes == 0)
-      return QString("%1s").arg( QString::number(seconds).rightJustified(2,' ') );
-  return QString("%1h:%2min:%3s").arg( QString::number(hours).rightJustified(5,' ') ).arg( QString::number(minutes).rightJustified(2,'0') ).arg( QString::number(seconds).rightJustified(2,'0') );
+      if (minutes == 0)
+          return QString("%1s").arg( QString::number(seconds).rightJustified(2,'.') );
+      else
+          return QString("%1min:%2s").arg( QString::number(minutes).rightJustified(2,'.') ).arg( QString::number(seconds).rightJustified(2,'0') );
+  return QString("%1h:%2min:%3s").arg( QString::number(hours).rightJustified(5,'.') ).arg( QString::number(minutes).rightJustified(2,'0') ).arg( QString::number(seconds).rightJustified(2,'0') );
 }
 
 char* stringToLowerCase(char* string) {

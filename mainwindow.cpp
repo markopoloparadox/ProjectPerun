@@ -1,17 +1,24 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "gamelibrary.h"
+#include "addfriend.h"
 #include <fstream>
 #include <cstring>
 #include <QString>
 #include <QByteArray>
 #include <QDateTime>
+#include <sstream>
+#include <QMessageBox>
+
+#if defined (__linux__)
+#include <sys/stat.h>
+#endif
 
 #if defined (_WIN32)
 #include <windows.h>
 #include <tchar.h>
 #include <strsafe.h>
 #include <QSettings>
+
 
 HBITMAP GetScreenBmp(HDC hdc) {
     // Get screen dimensions
@@ -30,7 +37,8 @@ HBITMAP GetScreenBmp(HDC hdc) {
 }
 
 void HandleHotkeys(void *arg) {
-    Ui::MainWindow *ui = (Ui::MainWindow*)arg;
+    MainWindow *mw = (MainWindow*)arg;
+    Ui::MainWindow *ui = mw->ui;
     if (RegisterHotKey(NULL, 1, MOD_ALT | 0x4000, 0x42)) {
         qDebug() << "Hotkey is successfully registered, using MOD_NOREPEAT flag";
     }
@@ -47,6 +55,7 @@ void HandleHotkeys(void *arg) {
 
             HBITMAP hBitmap = GetScreenBmp(hdc);
 
+            mw->snd->setObjectName("screenshot");
             BITMAPINFO MyBMInfo = { 0 };
             MyBMInfo.bmiHeader.biSize = sizeof(MyBMInfo.bmiHeader);
 
@@ -94,10 +103,10 @@ void HandleHotkeys(void *arg) {
     }
 }
 
-QString getFileLocationFromRegistryKey(QString registryKey) {
-    int lastBackslashPos = registryKey.lastIndexOf('\\');
-    QString path = registryKey.mid(0, lastBackslashPos);
-    QString keyname = registryKey.mid(lastBackslashPos+1);
+QString MainWindow::getFileLocationFromRegistryKey(QString registryKey) {
+    int keynamePosition = registryKey.lastIndexOf('\\') + 1;
+    QString path = registryKey.mid(0, keynamePosition);
+    QString keyname = registryKey.mid(keynamePosition);
 
     QSettings settings(
         path,
@@ -111,12 +120,13 @@ QString getFileLocationFromRegistryKey(QString registryKey) {
     }
 }
 
-void autoDetectGames() {
+void MainWindow::autoDetectGames() {
     tGames gameRecord;
     tPath gamePath;
     std::fstream fileAllGames;
     std::fstream fileMyGames;
     QMap<QString, tPath> assocList;
+    fileHandlingMutex.lock();
     fileMyGames.open("gamepath.dat", std::ios::in | std::ios::binary);
     while (true) {
         fileMyGames.read((char*)&gamePath, sizeof(tPath));
@@ -134,14 +144,15 @@ void autoDetectGames() {
         if (fileAllGames.eof()==true) {
             break;
         }
-        QString lastKnownLocation = assocList.find(gameRecord.processName).value().path;
-        if (!lastKnownLocation.isEmpty()) {
-            if (QFile::exists(lastKnownLocation)) {
+        QString lastKnownLocation = "";
+        if (assocList.contains(gameRecord.processName)) {
+            lastKnownLocation = assocList.find(gameRecord.processName).value().path;
+            if (QFile::exists(lastKnownLocation + gameRecord.processName)) {
                 found = true;
             }
         }
         if (!found) {
-            QString gameLocationFromRegistry = getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
+            QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
             if (gameLocationFromRegistry.isEmpty()) {
                 if (!lastKnownLocation.isEmpty()) {
                     assocList.remove(gameRecord.processName);
@@ -152,9 +163,11 @@ void autoDetectGames() {
                     if (!gameLocationFromRegistry.endsWith("\\")) {
                         gameLocationFromRegistry.append("\\");
                     }
-                        gameLocationFromRegistry.append(gameRecord.processName);
                 }
-                if (QFile::exists(gameLocationFromRegistry)) {
+                else {
+                    gameLocationFromRegistry.resize(gameLocationFromRegistry.lastIndexOf('\\') + 1);
+                }
+                if (QFile::exists(gameLocationFromRegistry + gameRecord.processName)) {
                     strcpy(gamePath.processName, gameRecord.processName);
                     strcpy(gamePath.path, gameLocationFromRegistry.toStdString().c_str());
                     strcpy(gamePath.customExecutableParameters, "");
@@ -168,50 +181,49 @@ void autoDetectGames() {
         fileMyGames.write((char*)&i.value(), sizeof(tPath));
     }
     fileMyGames.close();
+    fileHandlingMutex.unlock();
 }
-#endif
-
-#if defined (__linux__)
-#include <sys/stat.h>
-#include <unistd.h>
-#include <ctime>
-#include <cmath>
-
-/*char* add_zeros_before (short value, short numOfDigits = 2) {
-    char result[5] = "";
-    short i;
-    for (i = 0 ; i<numOfDigits ; i++) {
-        result[i] = 48+value/pow(10,numOfDigits-i-1);
-        value = value%pow(10,numOfDigits-i-1);
-    }
-    result[i] = '\0';
-    return result;
-}*/
 #endif
 
 MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name, QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow){
-
+    ui(new Ui::MainWindow),
+    m_Name(name)
+{
     ui->setupUi(this);
 
     this->setWindowTitle("Perun (Logged in as " + name + ")");
     this->m_Port = port;
     this->m_Socket = socket;
     this->adminMode = aMode;
-    this->m_Name = name;
 
-    this->right = 0;    //at the beginning, first (main) thread will be prior one
-    this->flags[0] = this->flags[1] = 0;    //initialising that none of threads want to do something what is in critical section
+    this->snd = new QSound("");
+    connect(this->snd, &QSound::objectNameChanged, QCoreApplication::instance(),
+                [&]()
+                {
+                    if (!this->snd->objectName().isEmpty()) {
+                        if (this->snd->objectName() == "screenshot") {
+                            this->snd->play(":/sound/camera_shutter_sound.wav");
+                        }
+                        else {
+                            this->snd->play(":/sound/message_notification_sound.wav");
+                        }
+                        this->snd->setObjectName("");
+                    }
+                },
+                Qt::QueuedConnection
+    );
 
-    m_UDPSocket = new QUdpSocket();
-    m_UDPSocket->bind(this->m_Port);
-    qDebug() << m_Port;
-    connect(m_UDPSocket, SIGNAL(readyRead()), this, SLOT(CheckForMsg()));
+    connect(m_Socket, SIGNAL(readyRead()), this, SLOT(onTcpMessageReceived()));
+    this->request_friends_list();
 
-    QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(refresh_friends_list()));
-    timer->start(1000);
+    std::fstream file;
+    fileHandlingMutex.lock();
+    file.open("gamepath.dat",std::ios::app); //create file if it does not exists; otherwise do nothing (it won't be changed)
+    file.close();
+    fileHandlingMutex.unlock();
+
+    this->check_if_newer_games_list_exist();          //checks if there's any newer version of gameslist.dat (if there is, server sends it to us)
 
     ui->currentStatusCBox->addItem("Online");
     ui->currentStatusCBox->addItem("Away From Keyboard");
@@ -226,86 +238,42 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(2,QHeaderView::Stretch);
     ui->currentlyPlayingTBox->setFocus();
 
-    std::fstream file;
-    file.open("gamepath.dat",std::ios::app); //create file if it does not exists; otherwise do nothing (it won't be changed)
-    file.close();
-
-    if ( !this->update_supported_games_list() ) {          //checks if there's any newer version of gameslist.dat (if there is, server sends it to us)
-        QMessageBox msgBox;
-        msgBox.setText("Error has been occurred while receiving packet with most recent list of supported games! Try again manually by clicking \"Check for Update\" button in \"Configure game library\" menu.");
-        msgBox.exec();
-    }
-    this->refresh_games_list();     //refreshes table in "My Games" tab with games that user owns (for which (s)he defined path)
-
-    autoDetectGames();
-
     gameActivityListenerThread = new std::thread (ListenGameActivity, this);
 
-    globalShortcutListenerThread = new std::thread(HandleHotkeys, ui);
+    globalShortcutListenerThread = new std::thread(HandleHotkeys, this);
 }
 
 MainWindow::~MainWindow(){      //destructor isn't called when form is closed because this form isn't called with Qt::WA_DeleteOnClose attribute
     m_Socket->disconnectFromHost();
     m_Socket->close();
     delete m_Socket;
-    m_UDPSocket->disconnectFromHost();
-    m_UDPSocket->close();
-    delete m_UDPSocket;
+    delete snd;
     delete ui;
     delete gameActivityListenerThread;     //if destructor is called, this would cause error because active thread must previously be finished and then catched with join() method
     delete globalShortcutListenerThread;
 }
 
 void MainWindow::on_AddFriendButton_clicked(){
-    AddFriend* addfrindbox = new AddFriend(m_Socket);
-    addfrindbox->show();
-
+    AddFriend* addFriendWin = new AddFriend(m_Socket);
+    addfriendbox = addFriendWin->ui;
+    addFriendWin->show();
 }
 
-void MainWindow::enter_in_critical_section(bool tID1) {    //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function ensures that just one thread is at the moment doing some sensitive action (i.e. sending/receiving messages over network sockets, writing content in file)
-    bool tID2 = !tID1;
-    flags[tID1] = 1;
-    while (flags[tID2]!=0) {
-        if (right==tID2) {
-            flags[tID1] = 0;
-            while (right==tID2) {
-                ;
-            }
-            flags[tID1] = 1;
-        }
-    }
-}
-
-void MainWindow::exit_from_critical_section(bool tID1) {     //part of Dekker's algorithm (solution for accomplishing mutual exclusion with 2 threads) - this function releases resources that were locked by tID1 thread and now it becomes available for another thread
-    bool tID2 = !tID1;
-    right = tID2;
-    flags[tID1] = 0;
-}
-
-void MainWindow::refresh_friends_list(){
+void MainWindow::request_friends_list(){
     QJsonObject object;
     QJsonDocument document;
     QByteArray packet;
 
     object["connection"] = "0011";
     document.setObject(object);
-    packet = (document.toJson(QJsonDocument::Compact));
-
-    this->enter_in_critical_section(0);
+    packet = document.toJson(QJsonDocument::Compact);
 
     m_Socket->write(packet);
     m_Socket->flush();
-    m_Socket->waitForReadyRead();
+}
 
-
-    packet = m_Socket->readAll();
-
-    this->exit_from_critical_section(0);
-
-    document = QJsonDocument::fromJson(packet.constData());
-    object = document.object();
-
-    QJsonValue value = object.value("friends");
+void MainWindow::get_friends_list(QJsonObject message){
+    QJsonValue value = message.value("friends");
     QJsonArray array = value.toArray();
 
     while(ui->tableWidget->rowCount() < array.count())
@@ -318,65 +286,9 @@ void MainWindow::refresh_friends_list(){
     }
 }
 
-/*void MainWindow::on_ChatButton_clicked(){
-    QJsonObject object;
-    QJsonDocument document;
-    QByteArray packet;
-
-    if(ui->UserNamChatLineEdit->text() == m_Name) {
-        ui->ChatStatusLabel->setText("Get a friend mate!");
-        ui->ChatStatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
-        return;
-    }
-
-    object["connection"] = "0021";
-    object["username"] = ui->UserNamChatLineEdit->text();
-    document.setObject(object);
-    packet = (document.toJson(QJsonDocument::Compact));
-
-    m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(1000);
-    if(m_Socket->waitForReadyRead(3000)) {
-        packet = m_Socket->readAll();
-        document = QJsonDocument::fromJson(packet.constData());
-        object = document.object();
-
-        if(object["connection"] == "0015") {
-            ui->ChatStatusLabel->setText("Nope!");
-            ui->ChatStatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
-        }
-    }
-}*/
-
-void MainWindow::CheckForMsg(){
-    QJsonObject object;
-    QJsonDocument document;
-    QByteArray packet;
-
-    this->enter_in_critical_section(0);
-
-    packet.resize(m_UDPSocket->pendingDatagramSize());
-    m_UDPSocket->readDatagram(packet.data(), packet.size());
-
-    this->exit_from_critical_section(0);
-
-    document = QJsonDocument::fromJson(packet.constData());
-    object = document.object();
-
-    for(auto i : m_Chatvec) {
-        if(i->m_ChatId == object["chatid"].toInt()) {
-            i->Update(object);
-            return;
-        }
-    }
-
-    m_Chatvec.push_back(new ChatBox(object, m_Socket, m_Name, this));
-    m_Chatvec.at(m_Chatvec.size() - 1)->show();
-}
-
 void MainWindow::on_actionConfigure_game_library_triggered()
 {
-    gamelibrary* gameLibWin = new gamelibrary(this);
+    gameLibWin = new gamelibrary(this);
     gameLibWin->show();
 }
 
@@ -391,11 +303,11 @@ void MainWindow::check_game_status()
     while (true) {
         gameserver_info = NULL; //= new char [22];
 
-        this->enter_in_critical_section(1);
+        fileHandlingMutex.lock();
 
         running_game = game_running_in_background();
 
-        this->exit_from_critical_section(1);
+        fileHandlingMutex.unlock();
 
         std::fstream file;
         if (running_game != NULL) {
@@ -470,7 +382,7 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
             std::fstream file;
             tGames gameRecord;
 
-            this->enter_in_critical_section(tID);
+            fileHandlingMutex.lock();
 
             file.open("gameslist.dat",std::ios::in | std::ios::binary);
             int position = binarySearchWrapper(file,played_game_name);
@@ -478,7 +390,7 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
             file.read( (char*)&gameRecord,sizeof(tGames) );
             file.close();
 
-            this->exit_from_critical_section(tID);
+            fileHandlingMutex.unlock();
 
             if (gameserver_info==NULL) {        //if user started game but isn't on any server or (s)he disconnected from current and isn't playing on any right now
                 this->current_game = QString::fromUtf8(gameRecord.fullName);
@@ -502,21 +414,9 @@ void MainWindow::send_notification_message (short tID, const char* custom_status
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(tID);  //if one thread is identifier with tID 0 and another with 1, then if we know one of their identifiers, it is easy to get another one with negation unary operator (!0 == 1, !1 == 0)
-
     m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(300);
+    m_Socket->flush();
     qDebug() << "User status information is successfully sent!";
-
-    packet.clear();
-    m_Socket->waitForReadyRead(100);
-    packet = m_Socket->readAll();
-
-    this->exit_from_critical_section(tID);
-
-    object = QJsonDocument::fromJson(packet.constData());
-    user = object.object();
-
 }
 
 void MainWindow::on_currentStatusCBox_activated(const QString &arg1)
@@ -552,7 +452,7 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
     tPath recordPath;
     tGames recordGame;
 
-    this->enter_in_critical_section(0);
+    fileHandlingMutex.lock();
 
     file.open("gamepath.dat",std::ios::in | std::ios::binary);
     file2.open("gameslist.dat",std::ios::in | std::ios::binary);
@@ -576,7 +476,7 @@ void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab 
     file.clear();
     file2.close();
 
-    this->exit_from_critical_section(0);
+    fileHandlingMutex.unlock();
 
 }
 
@@ -586,7 +486,7 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
     tPath recordPath;
     tGames recordGame;
 
-    this->enter_in_critical_section(0);
+    fileHandlingMutex.lock();
 
     file.open("gamepath.dat",std::ios::in | std::ios::binary);
     file2.open("gameslist.dat",std::ios::in | std::ios::binary);
@@ -605,23 +505,355 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
         file2.seekp(position*sizeof(tGames));
         file2.read( (char*)&recordGame,sizeof(tGames) );
         if (strcmp( item->text().toUtf8() , recordGame.fullName )==0) {
-            start_program(recordPath.processName,NULL,NULL);
-            break;
+            file.close();
+            file2.close();
+            fileHandlingMutex.unlock();
+            this->start_program(recordPath.processName, NULL, NULL);
+            return;
         }
     }
     file.close();
     file2.close();
 
-    this->exit_from_critical_section(0);
+    fileHandlingMutex.unlock();
 
 }
 
-short MainWindow::update_supported_games_list () {  //0...error, 1...current file is up to date, 2...new file has been received   //downloads new version of gameslist.dat if available
+void MainWindow::update_supported_games_list (QJsonObject message, int packetSize) {
+    std::fstream file;
+    fileHandlingMutex.lock();
+    file.open("gameslist.dat",std::ios::out | std::ios::binary);
+    QByteArray data;    //received stringified data (\0 became \u0000 and numbers are not in numeric type) has to be converted back to
+    data.setRawData( message["file"].toString().toStdString().c_str() , packetSize-2-45 );    //size of stringified file data is equal to size of whole packet -2 (what are last 2 characters in packet: "} ) -41 (there are 45 characters in packet before file data (including "file" key))
+//char* ptr = new char [message["size"].toString().toInt()];
+//        memcpy(ptr,data,message["size"].toString().toInt());     //data.data()   is causing program to crash
+    file.write( message["file"].toString().toStdString().c_str() , message["size"].toString().toInt() );
+    file.close();
+    fileHandlingMutex.unlock();
+    qDebug () << "File has been successfully downloaded!";
+}
+
+void MainWindow::on_UserStatsButton_clicked()
+{
+    QMessageBox msgBox;
+    int row = ui->tableWidget->currentRow();
+    if (row == -1) {   //if any row isn't selected
+        msgBox.setText("First select row with user for which you want get game statistics!");
+        msgBox.exec();
+        return;
+    }
+    this->requestGameActivityInfo(ui->tableWidget->item(row, 0)->text());
+}
+
+void MainWindow::requestGameActivityInfo(QString email)
+{
+    QJsonObject user;
+    user["connection"] = "0027";
+    user["email"] = email;
+
+    QJsonDocument object(user);
+    QByteArray packet = (object.toJson(QJsonDocument::Compact));
+
+    m_Socket->write(packet);
+    m_Socket->flush();
+    qDebug() << "Request for game statistics about " << user["email"].toString() << " has been successfully sent!";
+}
+
+void MainWindow::on_JoinFriendButton_clicked()
+{
+    int row = ui->tableWidget->currentRow();
+    QMessageBox msgBox;
+    if (row == -1) {   //if any row isn't selected
+        msgBox.setText("First select row with user over whom you want to join gameserver!");
+        msgBox.exec();
+        return;
+    }
+    std::string game_info = ui->tableWidget->item(row,2)->text().toStdString();
+    if (game_info.empty()==true) {
+        msgBox.setText("User on which you have clicked isn't playing any game.");
+        msgBox.exec();
+        return;
+    }
+    int beginning_of_gameserver_info = game_info.find('(');
+    if (beginning_of_gameserver_info==-1) {
+        msgBox.setText("User on which you have clicked isn't playing on any gameserver");
+        msgBox.exec();
+        return;
+    }
+
+    std::fstream file;
+
+    fileHandlingMutex.lock();
+
+    file.open("gameslist.dat",std::ios::in | std::ios::binary);
+    tGames gameRecord;
+    while (true) {
+        file.read( (char*)&gameRecord,sizeof(tGames) );
+        if (file.eof()==true) {
+            file.close();
+            file.clear();
+            fileHandlingMutex.unlock();
+            msgBox.setText("User is playing some game that isn't listed in your game library! Check if there's any newer version of supported games list available.");
+            msgBox.exec();
+            return;
+        }
+        if (  strcmp( gameRecord.fullName , game_info.substr(0,beginning_of_gameserver_info-1).c_str() )==0  ) {
+            break;
+        }
+    }
+    file.close();
+    fileHandlingMutex.unlock();
+
+    int port_delimiter = game_info.find(':');
+    start_program( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter-beginning_of_gameserver_info-1).c_str() , game_info.substr(port_delimiter+1,game_info.length()-port_delimiter-2).c_str() );
+}
+
+void MainWindow::on_actionMy_Stats_triggered()
+{
+    this->requestGameActivityInfo(this->m_Name);
+}
+
+void MainWindow::on_InstantChatButton_clicked()
+{
+    short active_row = ui->tableWidget->currentRow();
+    if (active_row == -1) {
+        QMessageBox msgBox;
+        msgBox.setText("First select row with user with which you want to chat!");
+        msgBox.exec();
+        return;
+    }
+    QString username = ui->tableWidget->item(active_row,0)->text();
+    if (username == m_Name) {
+        QMessageBox msgbox;
+        msgbox.setText("Get a friend mate!");
+        msgbox.exec();
+        return;
+    }
+    if (ui->tableWidget->item(active_row,1)->text() == "Offline") {
+        QMessageBox msgbox;
+        msgbox.setText("You can't chat with offline user.");
+        msgbox.exec();
+        return;
+    }
+    ChatBox* chatbox = new ChatBox(m_Socket, username, this);
+    privateChatMap.insert(username, chatbox);
+    chatbox->show();
+}
+
+void MainWindow::on_actionDisconnect_triggered()
+{
+    this->close();
+    this->m_Socket->close();
+    QApplication::exit(1);      //restart application (show login screen again)
+}
+
+void MainWindow::on_actionExit_triggered()
+{
+    this->close();
+    this->m_Socket->close();
+    QApplication::exit(0);      //shut down application
+}
+
+void MainWindow::on_tableWidget_cellDoubleClicked(int row, int column)
+{
+    this->on_InstantChatButton_clicked();
+}
+
+void MainWindow::onTcpMessageReceived() {
+    QJsonObject object;
+    QJsonDocument document;
+    QByteArray packet;
+
+    packet = m_Socket->readAll();
+
+    std::vector<int> ranges;
+    int packetSize = packet.size();
+    byte numOfConsecutiveEscapeChars = 0;
+    int curlyBracketsState = 0;
+    int rangeSize = 0;
+    for (int i=0; i<packetSize; i++) {
+        char currChar = packet.at(i);
+        if (currChar == '\\') {
+            numOfConsecutiveEscapeChars++;
+        }
+        else {
+            if (numOfConsecutiveEscapeChars % 2 == 0) {
+                if (currChar == '{') {
+                    curlyBracketsState++;
+                }
+                else if (currChar == '}') {
+                    if (--curlyBracketsState == 0) {
+                        ranges.push_back(i+1);
+                        rangeSize++;
+                    }
+                }
+            }
+            numOfConsecutiveEscapeChars = 0;
+        }
+    }
+    int lowerLimit = 0;
+    for (int i=0; i<rangeSize; i++) {
+        int upperLimit = ranges.at(i);
+
+        document = QJsonDocument::fromJson(packet.mid(lowerLimit, upperLimit - lowerLimit).constData());
+        object = document.object();
+
+        QString messageCode = object["connection"].toString();
+        switch (messageCode.toInt()) {
+            case 5:
+                addfriendbox->StatusLabel->setText("Sorry, that user does not seem to exist in our database!");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+                break;
+            case 9:
+                addfriendbox->StatusLabel->setText("Done!");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+                break;
+            case 10:
+                addfriendbox->StatusLabel->setText("That user is already your friend!");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+                break;
+            case 12:
+                this->get_friends_list(object);
+                break;
+            case 13:
+                addfriendbox->StatusLabel->setText("Don't be silly!");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+                break;
+            case 19:
+                qDebug () << "You already have the latest version of list of supported games.";
+                this->autoDetectGames();
+
+                this->refresh_games_list();     //refreshes table in "My Games" tab with games that user owns (for which (s)he defined path)
+
+                if (!initialGamesListCheckingDone) {
+                    initialGamesListCheckingDone = true;
+                }
+                else {
+                    QMessageBox msgBox;
+                    msgBox.setText("Current list of supported games is up to date!");
+                    msgBox.exec();
+                }
+                break;
+            case 20:
+                this->update_supported_games_list(object, packet.size());
+                this->autoDetectGames();
+
+                this->refresh_games_list();     //refreshes table in "My Games" tab with games that user owns (for which (s)he defined path)
+
+                if (!initialGamesListCheckingDone) {
+                    initialGamesListCheckingDone = true;
+                }
+                else {
+                    this->autoDetectGames();
+                    this->refresh_games_list();
+                    gameLibWin->fill_table();
+                    QMessageBox msgBox;
+                    msgBox.setText("Newer version of list of supported games has been found and received!");
+                    msgBox.exec();
+                }
+                break;
+            case 22:
+            case 23:
+                this->process_new_chat_message(object);
+                break;
+            case 28:
+                this->showGameStats(object);
+                break;
+            case 29:
+                this->refresh_friends_list(object);
+                break;
+            default:
+                qDebug() << "Unprocessed message: " << packet;
+        }
+
+        lowerLimit = upperLimit;
+    }
+}
+
+void MainWindow::process_new_chat_message(QJsonObject message) {
+    if (message["isprivate"].toBool()) {
+        QString sender = message["chatid"].toString();
+        if (privateChatMap.contains(sender)) {
+            ChatBox* chatbox = privateChatMap[sender];
+            chatbox->Update(message);
+            chatbox->show();
+            return;
+        }
+        ChatBox* chatbox = new ChatBox(message, m_Socket, sender, this);
+        privateChatMap.insert(sender, chatbox);
+        chatbox->show();
+    }
+    else {
+        QString chatRoomId = QString::number(message["chatid"].toInt());
+        for(auto i : chatGroupsVector) {
+            if(i->m_ChatId == chatRoomId) {
+                i->Update(message);
+                i->show();
+                return;
+            }
+        }
+        ChatBox* chatbox= new ChatBox(message, m_Socket, chatRoomId, this, true);
+        chatGroupsVector.push_back(chatbox);
+        chatbox->show();
+    }
+    snd->setObjectName("message");
+}
+
+void MainWindow::refresh_friends_list(QJsonObject message) {
+    int numRows = ui->tableWidget->rowCount();
+    QString userChanged = message["email"].toString();
+    for(int i=0; i < numRows; i++) {
+        if (ui->tableWidget->item(i, 0)->text() == userChanged) {
+            ui->tableWidget->item(i, 1)->setText(message["custom_status"].toString());
+            ui->tableWidget->item(i, 2)->setText(message["current_game"].toString());
+            break;
+        }
+    }
+}
+
+void MainWindow::showGameStats(QJsonObject object) {
+    QJsonValue value = object.value("stats");
+    QJsonArray array = value.toArray();
+
+    QString email = object.value("email").toString();
+    QString statslist = "Username: " + email + "\r\n\r\n";
+    if (array.count() == 0) {
+        statslist += QString("This user hasn't played any game yet!");
+    }
+    else {
+        statslist += QString("Game name").leftJustified(34, ' ') + QString("Time played").rightJustified(16, ' ') + "\r\n" + QString("__________________________________________________\r\n\r\n");
+        QJsonArray sortedArray;
+        int numOfPlayedGames = array.count();
+        for (int i=0 ; i < numOfPlayedGames ; i++) {
+            double maxTime = 0;
+            int maxIndex;
+            for (int j=0 ; j < numOfPlayedGames-i ; j++) {
+                double currTime = array[j].toObject().value("time_played").toDouble();
+                if (maxTime < currTime) {
+                    maxTime = currTime;
+                    maxIndex = j;
+                }
+            }
+            sortedArray.append(array[maxIndex]);
+            array.removeAt(maxIndex);
+        }
+        for (int i=0 ; i < numOfPlayedGames ; i++) {
+            statslist += divide_on_multiple_lines(sortedArray[i].toObject().value("game").toString(),34) + seconds_to_HMS( sortedArray[i].toObject().value("time_played").toDouble() ).rightJustified(16, '.') + "\r\n";
+        }
+    }
+    QMessageBox msgBox;
+    msgBox.setWindowTitle( "Games statistics for user " + email );
+    msgBox.setText(statslist);
+    QFont font = QFont("Courier");
+    msgBox.setFont(font);
+    msgBox.exec();
+}
+
+void MainWindow::check_if_newer_games_list_exist() {
     int size;
     std::fstream file;
 
-    this->enter_in_critical_section(0);
-
+    fileHandlingMutex.lock();
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
     if (!file) {
         file.clear();
@@ -632,8 +864,6 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         size=file.tellg();
     }
     file.close();
-
-    this->exit_from_critical_section(0);
 
     std::stringstream datetime;
 
@@ -673,7 +903,6 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
         struct stat attrib;             // create a file attribute structure
         stat("gameslist.dat", &attrib);     // get the attributes of file gameslist.dat
         clock = gmtime(&(attrib.st_mtime));     //transform date of last modification time from Local Time Zone to GMT Time Zone
-        //datetime << add_zeros_before(clock->tm_year,4) << "-" << add_zeros_before(clock->tm_mon+1) << "-" << add_zeros_before(clock->tm_mday) << "T" << add_zeros_before(clock->tm_hour) << ":" << add_zeros_before(clock->tm_min) << ":" << add_zeros_before(clock->tm_sec);   //concatenate date and time elements into string in valid format (US format) - this is replaced by functions that already exist (add_zeros_before(int,int) was user defined function)
         datetime << QString::number(clock->tm_year).rightJustified(4,'0') << "-" << QString::number(clock->tm_mon+1).rightJustified(2,'0') << "-" << QString::number(clock->tm_mday).rightJustified(2,'0') << "T" << QString::number(clock->tm_hour).rightJustified(2,'0') << ":" << QString::number(clock->tm_min).rightJustified(2,'0') << ":" << QString::number(clock->tm_sec).rightJustified(2,'0');   //concatenate date and time elements into string in valid format (US format)
 #endif
 
@@ -681,6 +910,7 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
     else {
         datetime << "1990";
     }
+    fileHandlingMutex.unlock();
 
     QJsonObject user;
     user["connection"] = "0018";
@@ -690,219 +920,65 @@ short MainWindow::update_supported_games_list () {  //0...error, 1...current fil
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
 
-    this->enter_in_critical_section(0);
-
     m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(1000);
+    m_Socket->flush();
     qDebug() << "Request for update info about gameslist.dat has been successfully sent!";
-
-    packet.clear();
-    while(m_Socket->waitForReadyRead(100)) {
-        packet += m_Socket->readAll();
-    }
-
-    this->exit_from_critical_section(0);
-
-    object = QJsonDocument::fromJson(packet.constData());
-    user = object.object();
-
-    if (user["connection"] == "0019") { //file is up to date
-        qDebug () << "You already have the latest version of list of supported games.";
-        return 1;
-    }
-    else if (user["connection"] == "0020") {     //if received packet contains most recent file with supported games
-        this->enter_in_critical_section(0);
-
-        file.open("gameslist.dat",std::ios::out | std::ios::binary);
-        QByteArray data;    //received stringified data (\0 became \u0000 and numbers are not in numeric type) has to be converted back to
-        data.setRawData( user["file"].toString().toStdString().c_str() , packet.length()-2-45 );    //size of stringified file data is equal to size of whole packet -2 (what are last 2 characters in packet: "} ) -41 (there are 45 characters in packet before file data (including "file" key))
-//char* ptr = new char [user["size"].toString().toInt()];
-//        memcpy(ptr,data,user["size"].toString().toInt());     //data.data()   is causing program to crash
-        file.write( user["file"].toString().toStdString().c_str() , user["size"].toString().toInt() );
-        file.close();
-
-        this->exit_from_critical_section(0);
-
-        qDebug () << "File has been successfully downloaded!";
-        return 2;
-    }
-    else {
-        qDebug () << "Error has been occurred while receiving packet with most recent list of supported games.";
-        return 0;   //error has occurred while receiving packet with most recent list of supported games
-    }
 }
 
-void MainWindow::on_UserStatsButton_clicked()
-{
-    int row = ui->tableWidget->currentRow();
-    QMessageBox msgBox;
-    if (row == -1) {   //if any row isn't selected
-        msgBox.setText("First select row with user for which you want get game statistics!");
-        msgBox.exec();
-        return;
-    }
-    this->showGameStats( ui->tableWidget->item(row, 0)->text() );
-}
-
-void MainWindow::showGameStats(QString email) {
-    QJsonObject user;
-    user["connection"] = "0027";
-    user["email"] = email;
-
-    QJsonDocument object(user);
-    QByteArray packet = (object.toJson(QJsonDocument::Compact));
-
-    this->enter_in_critical_section(0);
-
-    m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(300);
-    qDebug() << "Request for game statistics about " << user["email"] << " has been successfully sent!";
-
-    packet.clear();
-
-    while(m_Socket->waitForReadyRead(300)) {
-        packet += m_Socket->readAll();
-    }
-
-    this->exit_from_critical_section(0);
-
-    QJsonObject object2;
-    QJsonDocument document;
-
-    document = QJsonDocument::fromJson(packet.constData());
-    object2 = document.object();
-
-    QJsonValue value = object2.value("stats");
-    QJsonArray array = value.toArray();
-
-    QString statslist = "Username: " + email + "\r\n\r\n";
-    if (array.count() == 0) {
-        statslist += QString("This user hasn't played any game yet!");
-    }
-    else {
-        statslist += QString("Game name").leftJustified(34, ' ') + QString("Time played").rightJustified(16, ' ') + "\r\n" + QString("__________________________________________________\r\n\r\n");
-        for (int i=0 ; i < array.count() ; i++) {
-            statslist += divide_on_multiple_lines(array[i].toObject().value("game").toString(),34) + seconds_to_HMS( array[i].toObject().value("time_played").toDouble() ).rightJustified(16, '.') + "\r\n";
-        }
-    }
-    QMessageBox msgBox;
-    msgBox.setWindowTitle( "Games statistics for user " + email );
-    msgBox.setText(statslist);
-    QFont font = QFont("Courier");
-    msgBox.setFont(font);
-    msgBox.exec();
-}
-
-void MainWindow::on_JoinFriendButton_clicked()
-{
-    int row = ui->tableWidget->currentRow();
-    QMessageBox msgBox;
-    if (row == -1) {   //if any row isn't selected
-        msgBox.setText("First select row with user over whom you want to join gameserver!");
-        msgBox.exec();
-        return;
-    }
-    std::string game_info = ui->tableWidget->item(row,2)->text().toStdString();
-    if (game_info.empty()==true) {
-        msgBox.setText("User on which you have clicked isn't playing any game.");
-        msgBox.exec();
-        return;
-    }
-    int beginning_of_gameserver_info = game_info.find('(');
-    if (beginning_of_gameserver_info==-1) {
-        msgBox.setText("User on which you have clicked isn't playing on any gameserver");
-        msgBox.exec();
-        return;
-    }
-
+void MainWindow::start_program (const char* prog_name, const char* ip, const char* port) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
+    std::stringstream command;
     std::fstream file;
-
-    this->enter_in_critical_section(0);
-
-    file.open("gameslist.dat",std::ios::in | std::ios::binary);
     tGames gameRecord;
+
+    fileHandlingMutex.lock();
+    file.open("gameslist.dat",std::ios::in | std::ios::binary);
+    file.seekg( binarySearchWrapper(file,prog_name)*sizeof(tGames) , std::ios::beg );
+    file.read( (char*)&gameRecord,sizeof(tGames) );
+    file.close();
+
+    file.open("gamepath.dat",std::ios::in | std::ios::binary);
+    tPath pathRecord;
+    bool pathNotDefined=true;
     while (true) {
-        file.read( (char*)&gameRecord,sizeof(tGames) );
+        file.read( (char*)&pathRecord,sizeof(tPath) );
         if (file.eof()==true) {
-            file.close();
-            file.clear();
-            msgBox.setText("User is playing some game that isn't listed in your game library! Check if there's any newer version of supported games list available.");
-            msgBox.exec();
-            return;
+            pathNotDefined=false;
+            break;
         }
-        if (  strcmp( gameRecord.fullName , game_info.substr(0,beginning_of_gameserver_info-1).c_str() )==0  ) {
+        if (strcmp(pathRecord.processName,prog_name)==0) {
             break;
         }
     }
-    int port_delimiter = game_info.find(':');
-    start_program ( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter-beginning_of_gameserver_info-1).c_str() , game_info.substr(port_delimiter+1,game_info.length()-port_delimiter-2).c_str() );
+
     file.close();
-
-    this->exit_from_critical_section(0);
-}
-
-void MainWindow::on_actionMy_Stats_triggered()
-{
-    this->showGameStats(this->m_Name);
-}
-
-void MainWindow::on_InstantChatButton_clicked()
-{
-    QJsonObject object;
-    QJsonDocument document;
-    QByteArray packet;
-
-    short active_row = ui->tableWidget->currentRow();
-    if(ui->tableWidget->item(active_row,0)->text() == m_Name) {
-        QMessageBox msgbox;
-        msgbox.setText("Get a friend mate!");
-        msgbox.exec();
-//        ui->ChatStatusLabel->setText("Get a friend mate!");
-//        ui->ChatStatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+    fileHandlingMutex.unlock();
+    if (pathNotDefined==false || strcmp(pathRecord.path,"")==0) {   //record about some game can be stored locally if user removes game from his list of games (if he set game path to nullString)
+        QMessageBox msgBox;
+        msgBox.setText("Define game's path in settings in order to join game over your friend");
+        msgBox.exec();
+        file.clear();
         return;
     }
+    QString launchArguments = gameRecord.multiplayerCommandLineArguments;
+#if defined (_WIN32)
+    command << "cd /d \"" << pathRecord.path << "\" && " << "start ";
+#endif
+#if defined (__linux__)
+    std::string path = pathRecord.path;
+    path.replace(path.find("/home"),5,"~");             //replaces "/home" part of directory path with "~" because that's the only way how programs can be run when using absolute path
+    command << path.c_str() << "/" << prog_name;
+#endif
 
-    object["connection"] = "0021";
-    object["username"] = ui->tableWidget->item(active_row,0)->text();
-    document.setObject(object);
-    packet = (document.toJson(QJsonDocument::Compact));
-
-    this->enter_in_critical_section(0);
-
-    m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(1000);
-    if(m_Socket->waitForReadyRead(3000)) {
-        packet = m_Socket->readAll();
-        document = QJsonDocument::fromJson(packet.constData());
-        object = document.object();
-
-        if(object["connection"] == "0015") {
-            QMessageBox msgbox;
-            msgbox.setText("You can't chat with offline user.");
-            msgbox.exec();
-        }
+    if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"\0")!=0) {   //if in this function are passed ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
+        launchArguments = launchArguments.replace("%%exe%%", prog_name);
+        launchArguments = launchArguments.replace("%%ip%%", ip);
+        launchArguments = launchArguments.replace("%%port%%", port);
+        command << " " << launchArguments.toStdString().c_str();
     }
+    else {
+        command << prog_name;
+    }
+    command << " " << pathRecord.customExecutableParameters;
 
-    this->exit_from_critical_section(0);
-}
-
-void MainWindow::on_actionDisconnect_triggered()
-{
-    this->close();
-    this->m_Socket->close();
-    this->m_UDPSocket->close();
-    QApplication::exit(1);      //restart application (show login screen again)
-}
-
-void MainWindow::on_actionExit_triggered()
-{
-    this->close();
-    this->m_Socket->close();
-    this->m_UDPSocket->close();
-    QApplication::exit(0);      //shut down application
-}
-
-void MainWindow::on_tableWidget_cellDoubleClicked(int row, int column)
-{
-    this->on_InstantChatButton_clicked();
+    system(command.str().c_str());  //executing
 }

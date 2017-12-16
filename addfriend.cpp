@@ -36,33 +36,4 @@ void AddFriend::on_AddButton_clicked() {
 
     m_Socket->write(packet);
     m_Socket->flush();
-    m_Socket->waitForReadyRead();
-
-    packet = m_Socket->readAll();
-    document = QJsonDocument::fromJson(packet.constData());
-    object = document.object();
-
-
-    if(object["connection"] == "0005") {
-        ui->StatusLabel->setText("Sorry, that user does not seem to exist in our database!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
-        return;
-    }
-    if(object["connection"] == "0009") {
-        ui->StatusLabel->setText("Done!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
-        return;
-    }
-
-    if(object["connection"] == "0010") {
-        ui->StatusLabel->setText("That user is already your friend!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
-        return;
-    }
-
-    if(object["connection"] == "0013") {
-        ui->StatusLabel->setText("Don't be silly!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
-        return;
-    }
 }
