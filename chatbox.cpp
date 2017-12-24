@@ -66,6 +66,14 @@ void ChatBox::Update(QJsonObject object){
     }
 }
 
+void ChatBox::Update(QString message){
+    ui->TextBrowser->append(message);
+
+    if (this->isVisible() && !this->isActiveWindow()) {
+        ((MainWindow*)this->parent())->snd->setObjectName("message");
+    }
+}
+
 void ChatBox::SendMsg(){
     if (!ui->EnterLineEdit->text().isEmpty()) {
         QJsonObject object;
@@ -79,7 +87,7 @@ void ChatBox::SendMsg(){
 
 
         document.setObject(object);
-        packet = (document.toJson(QJsonDocument::Compact));
+        packet = document.toJson(QJsonDocument::Compact);
 
         m_Socket->write(packet);
         m_Socket->flush();
@@ -95,11 +103,12 @@ void ChatBox::CloseMsg() {
     object["connection"] = "0025";
     object["chatid"] = m_ChatId;
     document.setObject(object);
-    packet = (document.toJson(QJsonDocument::Compact));
+    packet = document.toJson(QJsonDocument::Compact);
 
     m_Socket->write(packet);
     m_Socket->flush();
 
+    ((MainWindow*)this->parent())->groupChatMap.remove(m_ChatId);
     this->destroy();
 }
 
@@ -111,11 +120,13 @@ void ChatBox::AddFriend(){
         msgbox.exec();
     }
     else {
-        QRegularExpression delimiter("\\S*,\\S*");
+        QRegularExpression delimiter("\\s*,\\s*|\\s+");
         QStringList listOfCurrentUsersInChat;
         if (isGroupChat) {
-            listOfCurrentUsersInChat = ui->UserListTextBrowser->toPlainText().split(delimiter, QString::SplitBehavior::SkipEmptyParts);
-            qDebug() << ui->UserListTextBrowser->toPlainText();
+            listOfCurrentUsersInChat = ui->UserListTextBrowser->toPlainText().split('\n', QString::SplitBehavior::SkipEmptyParts);
+        }
+        else {
+            listOfCurrentUsersInChat += { m_ChatId, ((MainWindow*)this->parent())->m_Name };
         }
         QStringList usernameList = ui->EnterLineEdit->text().trimmed().split(delimiter, QString::SplitBehavior::SkipEmptyParts);
         QJsonArray usernameJsonArray;
@@ -126,16 +137,14 @@ void ChatBox::AddFriend(){
             QString username = usernameList.at(i);
             bool notInFriendList = true;
             bool friendOffline = true;
-            if (isGroupChat) {
-                if (listOfCurrentUsersInChat.contains(username)) {
+            if (listOfCurrentUsersInChat.contains(username)) {
+                if (isGroupChat) {
                     QMessageBox msgbox;
                     msgbox.setText("User(s) you've tried to add is/are already in chatroom");
                     msgbox.exec();
                     return;
                 }
-            }
-            else {
-                if (username == m_ChatId || username == ((MainWindow*)this->parent())->m_Name) {
+                else {
                     continue;
                 }
             }
@@ -184,7 +193,7 @@ void ChatBox::AddFriend(){
             object["userlist"] = usernameJsonArray;
         }
         document.setObject(object);
-        packet = (document.toJson(QJsonDocument::Compact));
+        packet = document.toJson(QJsonDocument::Compact);
 
         m_Socket->write(packet);
         m_Socket->flush();

@@ -1,11 +1,14 @@
 #include "addfriend.h"
 #include "ui_addfriend.h"
+#include "mainwindow.h"
 
 AddFriend::AddFriend(QTcpSocket *socket, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::AddFriend)
 {
     ui->setupUi(this);
+    this->setWindowFlags(Qt::Dialog);
+    this->setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     this->m_Socket = socket;
 
     connect(ui->CancelButton, SIGNAL(clicked(bool)), this, SLOT(close()));
@@ -13,6 +16,7 @@ AddFriend::AddFriend(QTcpSocket *socket, QWidget *parent) :
 }
 
 AddFriend::~AddFriend() {
+    ((MainWindow*)this->parent())->addfriendbox = NULL;
     delete ui;
 }
 

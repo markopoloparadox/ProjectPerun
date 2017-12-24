@@ -146,7 +146,7 @@ void MainWindow::autoDetectGames() {
         }
         QString lastKnownLocation = "";
         if (assocList.contains(gameRecord.processName)) {
-            lastKnownLocation = assocList.find(gameRecord.processName).value().path;
+            lastKnownLocation = assocList.find(gameRecord.processName)->path;
             if (QFile::exists(lastKnownLocation + gameRecord.processName)) {
                 found = true;
             }
@@ -185,7 +185,7 @@ void MainWindow::autoDetectGames() {
 }
 #endif
 
-MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name, QWidget *parent) :
+MainWindow::MainWindow(QTcpSocket *socket, bool aMode, QString name, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     m_Name(name)
@@ -193,7 +193,6 @@ MainWindow::MainWindow(QTcpSocket *socket, qint16 port, bool aMode, QString name
     ui->setupUi(this);
 
     this->setWindowTitle("Perun (Logged in as " + name + ")");
-    this->m_Port = port;
     this->m_Socket = socket;
     this->adminMode = aMode;
 
@@ -273,16 +272,46 @@ void MainWindow::request_friends_list(){
 }
 
 void MainWindow::get_friends_list(QJsonObject message){
-    QJsonValue value = message.value("friends");
-    QJsonArray array = value.toArray();
+    QJsonArray friends = message.value("friends").toArray();
 
-    while(ui->tableWidget->rowCount() < array.count())
-        ui->tableWidget->insertRow( ui->tableWidget->rowCount());
+    while (ui->tableWidget->rowCount() < friends.count())
+        ui->tableWidget->insertRow(ui->tableWidget->rowCount());
 
-    for(int i = 0; i < array.count(); ++i) {
-        ui->tableWidget->setItem(i, 0, new QTableWidgetItem(array[i].toObject().value("email").toString()));
-        ui->tableWidget->setItem(i, 1, new QTableWidgetItem(array[i].toObject().value("custom_status").toString()));
-        ui->tableWidget->setItem(i, 2, new QTableWidgetItem(array[i].toObject().value("current_game").toString()));
+    for (int i = 0; i < friends.count(); i++) {
+        QJsonObject friendInfo = friends[i].toObject();
+        ui->tableWidget->setItem(i, 0, new QTableWidgetItem(friendInfo.value("email").toString()));
+        ui->tableWidget->setItem(i, 1, new QTableWidgetItem(friendInfo.value("custom_status").toString()));
+        ui->tableWidget->setItem(i, 2, new QTableWidgetItem(friendInfo.value("current_game").toString()));
+    }
+
+    QJsonArray friendRequests = message.value("friend_requests").toArray();
+    for (int i = 0; i < friendRequests.count(); i++) {
+        this->process_friend_request(friendRequests[i].toString());
+    }
+}
+
+void MainWindow::process_friend_request(QString username) {
+    QMessageBox msgbox(QMessageBox::Icon::NoIcon, "New friend request", "User " + username + " wants to be your friend. Do you want to accept it?", QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No | QMessageBox::StandardButton::Ignore);
+    QJsonObject object;
+    QJsonDocument document;
+    QByteArray packet;
+
+    switch (msgbox.exec()) {
+        case QMessageBox::StandardButton::Yes:
+            object["accept"] = true;
+            break;
+        case QMessageBox::StandardButton::No:
+            object["accept"] = false;
+            break;
+    }
+    if (object.contains("accept")) {
+        object["connection"] = "0015";
+        object["email"] = username;
+        document.setObject(object);
+        packet = document.toJson(QJsonDocument::Compact);
+
+        m_Socket->write(packet);
+        m_Socket->flush();
     }
 }
 
@@ -427,25 +456,6 @@ void MainWindow::on_currentStatusCBox_activated(const QString &arg1)
     }
 }
 
-/*void MainWindow::setOverallStatus() {
-    if (this->custom_status=="Online" || this->custom_status=="") {
-        if (current_game=="") {
-            ui->currentStatusCBox->setCurrentText(this->custom_status);
-        }
-        else {
-            ui->currentStatusCBox->setCurrentText(this->current_game);
-        }
-    }
-    else {
-        if (current_game=="") {
-            ui->currentStatusCBox->setCurrentText(this->custom_status);
-        }
-        else {
-            ui->currentStatusCBox->setCurrentText(this->custom_status + " - " + this->current_game);
-        }
-    }
-}*/
-
 void MainWindow::refresh_games_list () {    //refreshes Table in "My Games" tab with added paths to games (if user adds path for some game, that means that he has that game and it is added on My Games list)
     ui->listWidget->clear();    //deletes all previous content of that list before adding new one (otherwise, there would be many duplicates)
     std::fstream file, file2;
@@ -568,18 +578,19 @@ void MainWindow::on_JoinFriendButton_clicked()
         msgBox.exec();
         return;
     }
-    std::string game_info = ui->tableWidget->item(row,2)->text().toStdString();
-    if (game_info.empty()==true) {
+    QString game_info = ui->tableWidget->item(row,2)->text();
+    if (game_info.isEmpty()) {
         msgBox.setText("User on which you have clicked isn't playing any game.");
         msgBox.exec();
         return;
     }
-    int beginning_of_gameserver_info = game_info.find('(');
-    if (beginning_of_gameserver_info==-1) {
+    std::string gameName = extractGameNameOnly(game_info).toStdString();
+    if (gameName == game_info.toStdString()) {
         msgBox.setText("User on which you have clicked isn't playing on any gameserver");
         msgBox.exec();
         return;
     }
+    std::string serverIpAndPortInsideBrackets = game_info.replace(0, gameName.length()+2, "").toStdString();
 
     std::fstream file;
 
@@ -597,15 +608,15 @@ void MainWindow::on_JoinFriendButton_clicked()
             msgBox.exec();
             return;
         }
-        if (  strcmp( gameRecord.fullName , game_info.substr(0,beginning_of_gameserver_info-1).c_str() )==0  ) {
+        if (  strcmp( gameRecord.fullName , gameName.c_str() )==0  ) {
             break;
         }
     }
     file.close();
     fileHandlingMutex.unlock();
 
-    int port_delimiter = game_info.find(':');
-    start_program( gameRecord.processName , game_info.substr(beginning_of_gameserver_info+1,port_delimiter-beginning_of_gameserver_info-1).c_str() , game_info.substr(port_delimiter+1,game_info.length()-port_delimiter-2).c_str() );
+    int delimiterPosition = serverIpAndPortInsideBrackets.find_first_of(':');
+    start_program( gameRecord.processName , serverIpAndPortInsideBrackets.substr(0, delimiterPosition).c_str() , serverIpAndPortInsideBrackets.substr(delimiterPosition+1,serverIpAndPortInsideBrackets.length()-delimiterPosition-2).c_str() );
 }
 
 void MainWindow::on_actionMy_Stats_triggered()
@@ -705,19 +716,29 @@ void MainWindow::onTcpMessageReceived() {
                 addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
                 break;
             case 9:
-                addfriendbox->StatusLabel->setText("Done!");
-                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+                addfriendbox->StatusLabel->setText("Friend request sent!");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : green; }");
                 break;
             case 10:
                 addfriendbox->StatusLabel->setText("That user is already your friend!");
-                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : yellow; }");
                 break;
             case 12:
                 this->get_friends_list(object);
                 break;
             case 13:
                 addfriendbox->StatusLabel->setText("Don't be silly!");
-                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : yellow; }");
+                break;
+            case 14:
+                addfriendbox->StatusLabel->setText("Your previous request is still pending!");
+                addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : yellow; }");
+                break;
+            case 16:
+                this->refresh_friends_list(object);
+                break;
+            case 17:
+                this->process_friend_request(object["email"].toString());
                 break;
             case 19:
                 qDebug () << "You already have the latest version of list of supported games.";
@@ -759,9 +780,6 @@ void MainWindow::onTcpMessageReceived() {
             case 28:
                 this->showGameStats(object);
                 break;
-            case 29:
-                this->refresh_friends_list(object);
-                break;
             default:
                 qDebug() << "Unprocessed message: " << packet;
         }
@@ -773,27 +791,26 @@ void MainWindow::onTcpMessageReceived() {
 void MainWindow::process_new_chat_message(QJsonObject message) {
     if (message["isprivate"].toBool()) {
         QString sender = message["chatid"].toString();
-        if (privateChatMap.contains(sender)) {
-            ChatBox* chatbox = privateChatMap[sender];
+        ChatBox* chatbox;
+        if (chatbox = privateChatMap[sender]) {
             chatbox->Update(message);
             chatbox->show();
             return;
         }
-        ChatBox* chatbox = new ChatBox(message, m_Socket, sender, this);
+        chatbox = new ChatBox(message, m_Socket, sender, this);
         privateChatMap.insert(sender, chatbox);
         chatbox->show();
     }
     else {
-        QString chatRoomId = QString::number(message["chatid"].toInt());
-        for(auto i : chatGroupsVector) {
-            if(i->m_ChatId == chatRoomId) {
-                i->Update(message);
-                i->show();
-                return;
-            }
+        QString chatRoomId = message["chatid"].toString();
+        ChatBox* chatbox;;
+        if (chatbox = groupChatMap[chatRoomId]) {
+            chatbox->Update(message);
+            chatbox->show();
+            return;
         }
-        ChatBox* chatbox= new ChatBox(message, m_Socket, chatRoomId, this, true);
-        chatGroupsVector.push_back(chatbox);
+        chatbox = new ChatBox(message, m_Socket, chatRoomId, this, true);
+        groupChatMap.insert(chatRoomId, chatbox);
         chatbox->show();
     }
     snd->setObjectName("message");
@@ -801,14 +818,49 @@ void MainWindow::process_new_chat_message(QJsonObject message) {
 
 void MainWindow::refresh_friends_list(QJsonObject message) {
     int numRows = ui->tableWidget->rowCount();
-    QString userChanged = message["email"].toString();
+    QString username = message["email"].toString();
+    QString newCustomStatus = message["custom_status"].toString();
+    QString newGameStatus = message["current_game"].toString();
+    if (addfriendbox != NULL && addfriendbox->EmailLineEdit->text() == username) {
+        addfriendbox->StatusLabel->setText("Specified user is now your friend!");
+        addfriendbox->StatusLabel->setStyleSheet("QLabel { background-color : white; color : green; }");
+    }
     for(int i=0; i < numRows; i++) {
-        if (ui->tableWidget->item(i, 0)->text() == userChanged) {
-            ui->tableWidget->item(i, 1)->setText(message["custom_status"].toString());
-            ui->tableWidget->item(i, 2)->setText(message["current_game"].toString());
-            break;
+        if (ui->tableWidget->item(i, 0)->text() == username) {
+            ChatBox* chatbox = privateChatMap[username];
+            if (chatbox != NULL) {
+                QString oldCustomStatus = ui->tableWidget->item(i, 1)->text();
+                QString oldGameName = extractGameNameOnly(ui->tableWidget->item(i, 2)->text());
+                QString newGameName = extractGameNameOnly(newGameStatus);
+                if (oldCustomStatus != newCustomStatus) {
+                    if (oldCustomStatus == "Offline") {
+                        chatbox->Update(username + " is now online!");
+                    }
+                    else if (newCustomStatus == "Offline") {
+                        chatbox->Update(username + " is now offline..");
+                    }
+                    else {
+                        chatbox->Update(((QString)"%1 has changed their status from \"%2\" to \"%3\"").arg(username, oldCustomStatus, newCustomStatus));
+                    }
+                }
+                else if (oldGameName != newGameName) {
+                    if (oldGameName.isEmpty()) {
+                        chatbox->Update(((QString)"%1 is now playing \"%2\"").arg(username, newGameName));
+                    }
+                    else {
+                        chatbox->Update(((QString)"%1 has stopped playing \"%2\"").arg(username, oldGameName));
+                    }
+                }
+            }
+            ui->tableWidget->item(i, 1)->setText(newCustomStatus);
+            ui->tableWidget->item(i, 2)->setText(newGameStatus);
+            return;
         }
     }
+    ui->tableWidget->insertRow(numRows);
+    ui->tableWidget->setItem(numRows, 0, new QTableWidgetItem(username));
+    ui->tableWidget->setItem(numRows, 1, new QTableWidgetItem(newCustomStatus));
+    ui->tableWidget->setItem(numRows, 2, new QTableWidgetItem(newGameStatus));
 }
 
 void MainWindow::showGameStats(QJsonObject object) {
@@ -821,7 +873,7 @@ void MainWindow::showGameStats(QJsonObject object) {
         statslist += QString("This user hasn't played any game yet!");
     }
     else {
-        statslist += QString("Game name").leftJustified(34, ' ') + QString("Time played").rightJustified(16, ' ') + "\r\n" + QString("__________________________________________________\r\n\r\n");
+        statslist += "<thead><tr><th>Game name</th><th align=\"right\">Time played</th></tr></thead><tbody>";
         QJsonArray sortedArray;
         int numOfPlayedGames = array.count();
         for (int i=0 ; i < numOfPlayedGames ; i++) {
@@ -838,14 +890,12 @@ void MainWindow::showGameStats(QJsonObject object) {
             array.removeAt(maxIndex);
         }
         for (int i=0 ; i < numOfPlayedGames ; i++) {
-            statslist += divide_on_multiple_lines(sortedArray[i].toObject().value("game").toString(),34) + seconds_to_HMS( sortedArray[i].toObject().value("time_played").toDouble() ).rightJustified(16, '.') + "\r\n";
+            statslist += "<tr><td>" + sortedArray[i].toObject().value("game").toString() + "</td><td align=\"right\" valign=\"middle\">" + seconds_to_HMS(sortedArray[i].toObject().value("time_played").toDouble()) + "</td></tr>";
         }
     }
     QMessageBox msgBox;
     msgBox.setWindowTitle( "Games statistics for user " + email );
-    msgBox.setText(statslist);
-    QFont font = QFont("Courier");
-    msgBox.setFont(font);
+    msgBox.setText("<table border=\"2\" cellspacing=\"0\">" + statslist + "</tbody></table>");
     msgBox.exec();
 }
 

@@ -6,7 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <QString>
-#include <QStringList>
+#include <QRegularExpression>
 
 struct tGames {
     char processName[50];
@@ -27,9 +27,9 @@ int binarySearchWrapper (std::fstream &file,const char* processName);
 
 QString seconds_to_HMS (double durationDouble);
 
-QString divide_on_multiple_lines(QString longText, int charsPerLine);
-
 char* stringToLowerCase(char* string);
+
+QString extractGameNameOnly (QString gameStatus);
 
 #endif // FUNKCIJE
 

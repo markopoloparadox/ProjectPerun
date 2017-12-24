@@ -8,6 +8,8 @@ LoginWindow::LoginWindow(bool adminMode, QWidget *parent) :
     ui(new Ui::LoginWindow)
 {
     ui->setupUi(this);
+    this->setWindowFlags(Qt::Dialog);
+    this->setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     ui->PasswordLineEdit->setEchoMode(QLineEdit::Password); //hides entered characters while typing
 
     this->m_Socket = new QTcpSocket();
@@ -61,10 +63,10 @@ void LoginWindow::RegisterAnAccount() {
      *
     */
     m_Socket->connectToHost(this->serverAddress, this->serverPort);
-    if(m_Socket->waitForConnected(1000))
-        qDebug() << "Connected!";
+    if(m_Socket->waitForConnected(3000))
+        qDebug() << "Connection with server is successfully established!";
     else {
-        qDebug() << "Not connected!";
+        qDebug() << "Connection with server could not be established!";
         ui->StatusLabel->setText("Server is offline!");
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
         return;
@@ -151,10 +153,10 @@ void LoginWindow::Login() {
     }
 
     m_Socket->connectToHost(this->serverAddress, this->serverPort);
-    if(m_Socket->waitForConnected(1000))
-        qDebug() << "Connected!";
+    if(m_Socket->waitForConnected(3000))
+        qDebug() << "Connection with server is successfully established!";
     else {
-        qDebug() << "Not connected!";
+        qDebug() << "Connection with server could not be established!";
         ui->StatusLabel->setText("Server is offline!");
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
         return;
@@ -163,13 +165,10 @@ void LoginWindow::Login() {
     QJsonObject object;
     QJsonDocument document;
     QByteArray packet;
-    qsrand(QTime::currentTime().msec());
-    quint16 port = m_Socket->localPort();
 
     object["connection"] = "0004";
     object["email"] = email;
     object["password"] = password;
-    object["port"] = port;
     document.setObject(object);
     packet = document.toJson(QJsonDocument::Compact);
 
@@ -188,7 +187,7 @@ void LoginWindow::Login() {
         ui->StatusLabel->setText("Wrong password!");
         ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
     } else if(object["connection"] == "0007") {
-        MainWindow* mainWin = new MainWindow(m_Socket, port, adminMode, email);
+        MainWindow* mainWin = new MainWindow(m_Socket, adminMode, email);
         //mainWin->setAttribute(Qt::WA_DeleteOnClose);
         mainWin->show();
         this->close();

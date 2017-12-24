@@ -20,6 +20,7 @@ gamelibrary::gamelibrary(QWidget *parent) :
     ui(new Ui::gamelibrary)
 {
     ui->setupUi(this);
+    this->setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     ((MainWindow*)this->parent())->fileHandlingMutex.lock();
     std::fstream file;
     file.open("gameslist.dat",std::ios::in | std::ios::binary);
@@ -93,6 +94,7 @@ void gamelibrary::fill_table () {
 
 gamelibrary::~gamelibrary()
 {
+    ((MainWindow*)this->parent())->gameLibWin = NULL;
     delete ui;
 }
 

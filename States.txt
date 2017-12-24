@@ -16,8 +16,10 @@
  * "0011" - Client - Asks for list of friends - data[connection];
  * "0012" - Server - Sends a list of all friends and their status - data[connection, friends[]];
  * "0013" - Server - Sends a msg that you can't add yourself as friend - data[connection];
- * "0017" - Client;Client - Send a msg - data[connection, msg];
- * "0017" - Client;Client - Send other clients name - data[connection, icname, ocname];
+ * "0014" - Server - Friend that user tried to add still hasn't approved friendship - data[connection, email];
+ * "0015" - Client - User has accepted or rejected another user's friendship request - data[connection, email, accept];
+ * "0016" - Server - Sends recent user's change (login, logout, started/stopped playing game) to his/her friends
+ * "0017" - Server - Sends friend request to user - data[connection, email];
  * "0018" - Client - Check for update of gameslist.dat - data[connection, size, datatime];
  * "0019" - Server - User's gameslist.dat is up to date - data[connection];
  * "0020" - Server - Sends new version of requested file - data[connection, size, file];
@@ -29,5 +31,4 @@
  * "0026" - User   - User changed his/her custom status or his/her game status was changed - data[connection, custom_status, current_game];
  * "0027" - User   - User sends request for receiving game activity of some user - data[connection, email];
  * "0028" - Server - Sends to user list of games which user with requested username has played - data[connection, stats[]];
- * "0029" - Server - Sends recent user's change (login, logout, started/stopped playing game) to his/her friends
  */

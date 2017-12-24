@@ -24,6 +24,7 @@ public:
     ~ChatBox();
     QString m_ChatId;
     void Update(QJsonObject object);
+    void Update(QString message);
 
 public slots:
     void SendMsg();

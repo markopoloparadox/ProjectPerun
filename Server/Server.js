@@ -8,46 +8,47 @@ var passwordHash = require('password-hash');
 var clients = [];
 var chats = [];
 
-function NotifyChatRoomsAboutUserLogout(email) {
-    chats.forEach(function(users, index) {
-        var userPositionInChat = users.indexOf(email);
+function notifyChatRoomsAboutUserLogout(email) {
+    chats.forEach(function(chatParticipants, index) {
+        var userPositionInChat = chatParticipants.indexOf(email);
         if (userPositionInChat !== -1) {
-            var chatGroupToModify = chats[index];
-            chatGroupToModify.splice(userPositionInChat, 1);
+            chatParticipants.splice(userPositionInChat, 1);
             
+            var post = new Object();
             post.connection = "0022";
-            post.chatid = index;
-            post.userlist = chatGroupToModify;
+            post.chatid = index.toString();
+            post.userlist = chatParticipants;
             post.msg = email + " has left... (went offline)";
         
-            SendDataToMultipleUsers(chatGroupToModify, post);
+            sendDataToMultipleUsers(chatParticipants, post);
         }
     });
 }
 
-function PersonQuitChat(data, socket) {
+function personQuitsChat(data, socket) {
     var chatGroupToModify = chats[data.chatid];
-    chatGroupToModify.splice(chatGroupToModify.indexOf(socket.name));
+    chatGroupToModify.splice(chatGroupToModify.indexOf(socket.name), 1);
     
+    var post = new Object();
     post.connection = "0022";
     post.chatid = data.chatid;
     post.userlist = chatGroupToModify;
-    post.msg = socket.name + " has left... (went offline)";
+    post.msg = socket.name + " has left...";
 
-    SendDataToMultipleUsers(chatGroupToModify, post);
+    sendDataToMultipleUsers(chatGroupToModify, post);
 }
 
-function AddPersonsToChat(data, socket) {
+function addPersonsToChat(data, socket) {
     var chatGroupToModify = chats[data.chatid];
-    
+
     data.userlist.forEach(function(username) {
-        var user = GetClientByEmail(username);
+        var user = getClientByEmail(username);
         if (user) {
-            chatGroupToModify.push(user);
+            chatGroupToModify.push(username);
         }
     });
     
-    data.msg = socket.name + " has added " + data.usernames + " to chat...";
+    data.msg = socket.name + " has added " + data.userlist.join(', ') + " to chat...";
     
     var post = new Object();
     post.connection = "0022";
@@ -55,46 +56,49 @@ function AddPersonsToChat(data, socket) {
     post.userlist = chatGroupToModify;
     post.msg = data.msg;
 
-    SendDataToMultipleUsers(chatGroupToModify, post);
+    sendDataToMultipleUsers(chatGroupToModify, post);
 }
 
-function SendMsg(data, socket) {
+function sendMessage(data, socket) {
     var post = new Object();
-
     post.connection = "0023";
     post.isprivate = data.isprivate;
     post.msg = socket.name + ": " + data.msg;
     if (data.isprivate) {
-        post.chatid = data.chatid;
-        var userIndex = FindUserByEmail(clients, socket.name);
-        if (userIndex !== -1) {
-            clients[userIndex].socket.write(JSON.stringify(post));
-        }
         post.chatid = socket.name;
-        userIndex = FindUserByEmail(clients, data.chatid);
-        if (userIndex !== -1) {
-            clients[userIndex].socket.write(JSON.stringify(post));
+        var client = getClientByEmail(data.chatid);
+        if (client) {
+            client.socket.write(JSON.stringify(post));
+        }
+        else {
+            post.msg = "You can't send a message to an offline user.";
+        }
+        post.chatid = data.chatid;
+        client = getClientByEmail(socket.name);
+        if (client) {
+            client.socket.write(JSON.stringify(post));
         }
     }
     else {
         post.chatid = data.chatid;
-        SendDataToMultipleUsers(chats[data.chatid], post);
+        sendDataToMultipleUsers(chats[data.chatid], post);
     }
 }
 
-function CreateChat(chatParticipants, socket) {
+function createChat(chatParticipants, socket) {
     chatParticipants.push(socket.name);
     var chatid = chats.push(chatParticipants) - 1;
-    
+
+    var post = new Object();
     post.connection = "0022";
-    post.chatid = chatid;
+    post.chatid = chatid.toString();
     post.isprivate = false;
     post.userlist = chatParticipants;
-    post.msg = "";
-    socket.write(JSON.stringify(post));
+    post.msg = socket.name + " has created chat group.";
+    sendDataToMultipleUsers(chatParticipants, post);
 }
 
-function ReadDatabase() {
+function readDatabase() {
 	var stat1 = fs.statSync(__dirname + "/BazaKorisnika.json");
 	if (stat1.size === 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		return [];
@@ -105,66 +109,61 @@ function ReadDatabase() {
     return users;
 }
 
-function WriteToDatabase(users) {
+function writeToDatabase(users) {
     users = JSON.stringify(users);
     fs.writeFile(__dirname + "/BazaKorisnika.json", users, function (err) {
         if (err) return console.log(err);
     });
 }
 
-function FindUserByEmail(users, email) {
-    index = -1;
+function getUserByEmail(users, email) {
+    var foundUser = false;
     users.forEach(function(user, i) {
         if (user.email == email) {
-            index = i;
+            foundUser = user;
             return false;
         }
     });
-    return index;
+    return foundUser;
 }
 
-function AddUserToDataBase(email, password, socket) {
+function addUserToDataBase(email, password, socket) {
 
-    var users = ReadDatabase();
-    var index = FindUserByEmail(users, email)
-    if(index !== -1) {
-        var post = new Object();
+    var users = readDatabase();
+    var post = new Object();
+    if (getUserByEmail(users, email)) {
         post.connection = "0002";
-
         socket.write(JSON.stringify(post));
     } else {
-        var friends = [];
         var user = new Object();
         user.email = email;
         user.password = passwordHash.generate(password);
-        user.friends = friends;
+        user.friends = [];
+        user.incoming_requests = [];
         users.push(user);
 
-        WriteToDatabase(users);
-        console.log("Dodan je korisnik: " + user.email + " " + user.password);
+        writeToDatabase(users);
+        console.log("Following user has been stored: " + user.email + " " + user.password);
 
-        var post = new Object();
         post.connection = "0003";
         socket.write(JSON.stringify(post));
     }
 }
 
-function LoginUser(email, password, port, socket) {
+function loginUser(email, password, socket) {
 
-    var users = ReadDatabase();
-    var index = FindUserByEmail(users, email)
+    var users = readDatabase();
+    var user = getUserByEmail(users, email);
     var post = new Object();
 
-    if(index === -1) {
+    if(!user) {
         post.connection = "0005";
         socket.write(JSON.stringify(post));
-        return;
     } else {
-        if(passwordHash.verify(password, users[index].password) === false) {
+        if(passwordHash.verify(password, user.password) === false) {
             post.connection  = "0006";
 
             socket.write(JSON.stringify(post));
-            return;
         } else {
             post.connection  = "0007";
             socket.name = email;
@@ -175,35 +174,32 @@ function LoginUser(email, password, port, socket) {
             object.custom_status = "Online";
 			object.current_game = "";
 			object.ingame_start_time = new Date();
-            object.index = index;
-            object.port = port;
 
             clients.push(object);
             console.log("LOGIN: " + socket.name);
             socket.write(JSON.stringify(post));
-            NotifyFriendsAboutChange(email);
-            return;
+            notifyFriendsAboutChange(email);
         }
     }
 }
 
-function AddLeadingZeros(num, size) {
+function addLeadingZeros(num, size) {
     var s = num + "";
     while (s.length < size)
 		s = "0" + s;
     return s;
 }
 
-function CheckForUpdateGamesList(usr_size, usr_datetime, socket) {
+function checkForGamesListUpdate(userFileSize, userFileDateTicks, socket) {
     var filename = 'gameslist.dat';
-	var usr_last_modified = new Date(usr_datetime);
+	var userFileDate = new Date(userFileDateTicks);new Date()
     var stat1 = fs.statSync(filename);
     var post = new Object();
-    if (stat1.mtime.getTime() > usr_last_modified.getTime() || stat1.size !== usr_size) {
+    if (stat1.mtime.getTime() > userFileDate.getTime() || stat1.size !== userFileSize) {
         post.connection = "0020";
-        post.size = AddLeadingZeros(stat1.size, 8);		//defining post.size as fixed size (otherwise would number 0 (represented as integer) be converted to string "0" and 1000 to "1000" after stringifying, so packets' size and structure would not be always same!) - can contain value from 0 to 10 000 000
-        var fajl = fs.readFileSync(filename, "binary");
-        post.file = fajl;
+        post.size = addLeadingZeros(stat1.size, 8);		//defining post.size as fixed size (otherwise would number 0 (represented as integer) be converted to string "0" and 1000 to "1000" after stringifying, so packets' size and structure would not be always same!) - can contain value from 0 to 99 999 999
+        var fileContent = fs.readFileSync(filename, "binary");
+        post.file = fileContent;
         console.log("Games list is not same like latest version. File is sent to client.");
     } else {
         post.connection = "0019";
@@ -213,65 +209,65 @@ function CheckForUpdateGamesList(usr_size, usr_datetime, socket) {
 	return;
 }
 
-function ChangeGameActivity(email, current_game) {		//counting user's time spent on some game
-	var index = FindUserByEmail(clients, email);
-	if (current_game === "") {		//if user stopped playing current game (so currently (s)he isn't playing anything)
-		var now = new Date();	//current time (time when user ends playing game which (s)he played till now)
-		var difference = now.getTime() - clients[index].ingame_start_time.getTime();	//in milliseconds
-		var seconds_elapsed = parseInt (difference/1000);	//there is no need to store milliseconds (and after stringifying numbers in double format take more size than integers)
-		console.log( email + " spent " + seconds_elapsed + " seconds playing " + GameNameOnly(CurrUserGame(email)) );
-		
-		UpdateGameStatistics(email, GameNameOnly(CurrUserGame(email)), seconds_elapsed);
-	}
-	else {		//if user now started playing game
-		clients[index].ingame_start_time = new Date();
-		console.log(email + " started playing " + GameNameOnly(current_game) + " on " + clients[index].ingame_start_time);
-	}
+function changeGameActivity(email, currentGameStatus) {		//counting user's time spent on some game
+    var client = getClientByEmail(email);
+    if (client) {
+        if (currentGameStatus === "") {		//if user stopped playing current game (so currently (s)he isn't playing anything)
+            var now = new Date();	//current time (time when user ends playing game which (s)he played till now)
+            var difference = now.getTime() - client.ingame_start_time.getTime();	//in milliseconds
+            var secondsElapsed = parseInt (difference/1000);	//there is no need to store milliseconds (and after stringifying numbers in double format take more size than integers)
+            console.log( email + " spent " + secondsElapsed + " seconds playing " + extractGameNameOnly(getCurrUserGameStatus(email)) );
+            
+            updateGameStatistics(email, extractGameNameOnly(getCurrUserGameStatus(email)), secondsElapsed);
+        }
+        else {		//if user now started playing game
+            client.ingame_start_time = new Date();
+            console.log(email + " started playing " + extractGameNameOnly(currentGameStatus) + " on " + client.ingame_start_time);
+        }
+    }
 }
 
-function GameNameOnly(game_with_IP) {
-	var IP_position = game_with_IP.lastIndexOf("(");	//precisely, it is position where is opened rounded bracket (which stands before IP address of game server)
-	if (IP_position !== -1)
-		game_with_IP = game_with_IP.slice(0, IP_position-1);
-	return game_with_IP;	//which is now without IP address (if there wasn't IP address, then is original string returned)
+function extractGameNameOnly(gameNameWithIpAndPort) {
+    return gameNameWithIpAndPort.replace(/ \(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])\)$/, '');
 }
 
-function NotifyFriendsAboutChange(email) {
-    var index = FindUserByEmail(clients, email);
-    post = new Object();
-    post.connection = "0029";
+function notifyFriendsAboutChange(email) {
+    var post = new Object();
+    post.connection = "0016";
     post.email = email;
-    post.custom_status = CurrUserStatus(email);
-    post.current_game = CurrUserGame(email);
-    var users = ReadDatabase();
+    post.custom_status = getCurrUserStatus(email);
+    post.current_game = getCurrUserGameStatus(email);
+    var users = readDatabase();
     users.forEach(function(user) {
         if (user.email === email) {
-            SendDataToMultipleUsers(user.friends, post);
+            sendDataToMultipleUsers(user.friends, post);
             return false;
         }
     });
 }
 
-function SendDataToMultipleUsers(recipients, data) {    // recipients should be array of strings (usernames)
+function sendDataToMultipleUsers(recipients, data) {    // recipients should be array of strings (usernames)
     var message = JSON.stringify(data);
     recipients.forEach(function(user) {
-        var userIndex = FindUserByEmail(clients, user);
-        if (userIndex !== -1) {
-            clients[userIndex].socket.write(message);
+        var client = getClientByEmail(user);
+        if (client) {
+            client.socket.write(message);
         }
     });
 }
 
-function StatusChanged(email, custom_status, current_game) {
-	var index = FindUserByEmail(clients, email);
-	if (GameNameOnly(clients[index].current_game) !== GameNameOnly(current_game))	//if user stopped playing game which (s)he played before
-		ChangeGameActivity(email, current_game);
-	clients[index].custom_status = custom_status;
-    clients[index].current_game = current_game;
-    NotifyFriendsAboutChange(email);
+function handleStatusChange(email, customStatus, currentGameStatus) {
+    var client = getClientByEmail(email);
+    if (client) {
+        if (extractGameNameOnly(client.current_game) !== extractGameNameOnly(currentGameStatus))	//if user stopped playing game which (s)he played before
+    		changeGameActivity(email, currentGameStatus);
+        client.custom_status = customStatus;
+        client.current_game = currentGameStatus;
+        notifyFriendsAboutChange(email);
+    }
 }
 
-function CurrUserStatus(email) {
+function getCurrUserStatus(email) {
     var currentStatus = "Offline";
     clients.forEach(function(client) {
         if (client.email === email) {
@@ -282,7 +278,7 @@ function CurrUserStatus(email) {
     return currentStatus;
 }
 
-function CurrUserGame(email) {
+function getCurrUserGameStatus(email) {
     var currentGame = "";		//if user isn't playing anything, then return empty string
     clients.forEach(function(client) {
         if (client.email === email) {
@@ -293,26 +289,26 @@ function CurrUserGame(email) {
 	return currentGame;
 }
 
-function RequestForGameStatistics (email, socket) {
+function requestForGameStatistics(email, socket) {
 	console.log(socket.name + " sent request for game statistics of user " + email);
-	post = new Object();
+	var post = new Object();
     post.connection = "0028";
     post.email = email;
-	post.stats = ReadGameStatistics(email);
-    var index = FindUserByEmail(clients,email);
-	if (CurrUserGame(email) !== "") {
+	post.stats = readGameStatistics(email);
+    var client = getClientByEmail(email);
+	if (getCurrUserGameStatus(email) !== "") {
         var playsFirstTime = true;
         post.stats.forEach(function(stat) {
-			if (stat.game === GameNameOnly(CurrUserGame(email))) {
-                stat.time_played += parseInt( ( new Date() - clients[index].ingame_start_time.getTime() ) / 1000 );
+			if (stat.game === extractGameNameOnly(getCurrUserGameStatus(email))) {
+                stat.time_played += parseInt( ( new Date() - client.ingame_start_time.getTime() ) / 1000 );
                 playsFirstTime = false;
 				return false;
 			}
         });
-		if (playsFirstTime) {	//if user is currently playing some game that he never played before (which is still not stored in .json file with stats because user still hasn't exited game)
+		if (playsFirstTime) {	//if user is currently playing some game that he has never played before (which is still not stored in .json file with stats because user still hasn't exited game)
 			var stat = {
-				game: GameNameOnly(CurrUserGame(email)),
-				time_played: parseInt( ( new Date() - clients[index].ingame_start_time.getTime() ) / 1000 )
+				game: extractGameNameOnly(getCurrUserGameStatus(email)),
+				time_played: parseInt( ( new Date() - client.ingame_start_time.getTime() ) / 1000 )
 			};
 			post.stats.push(stat);
 		}
@@ -329,60 +325,60 @@ function RequestForGameStatistics (email, socket) {
 	socket.write(JSON.stringify(post));
 }
 
-function ReadGameStatistics(email) {
+function readGameStatistics(email) {
 	var stat1 = fs.statSync(__dirname + "/GameActivity.json");
 	if (stat1.size === 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		return [];
 	}
 
-    var TextFromFile = fs.readFileSync(__dirname + "/GameActivity.json", "utf8");
-    var all_users = JSON.parse(TextFromFile);
-    var user_stats = [];
-    all_users.forEach(function(u) {
+    var textFromFile = fs.readFileSync(__dirname + "/GameActivity.json", "utf8");
+    var users = JSON.parse(textFromFile);
+    var userStats = [];
+    users.forEach(function(u) {
         if (u.user === email) {
-            user_stats = u.stats;   //returns all games that user with forwarded email played
+            userStats = u.stats;   //returns all games that user with forwarded email played
             return false;
         }
     });
-    return user_stats;
+    return userStats;
 }
 
-function UpdateGameStatistics(email, game, time_played) {
+function updateGameStatistics(email, game, timePlayed) {
 	var content;
 	var stat1 = fs.statSync(__dirname + "/GameActivity.json");
 	if (stat1.size === 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		content = [];
 	}
 	else {
-		var TextFromFile = fs.readFileSync(__dirname + "/GameActivity.json", "utf8");																											//mozda nejde Sync???
-		content = JSON.parse(TextFromFile);
+		var textFromFile = fs.readFileSync(__dirname + "/GameActivity.json", "utf8");
+		content = JSON.parse(textFromFile);
 	}
-	var user_exists = false;
-    var game_exists = false;
+	var userExists = false;
+    var gameExists = false;
     content.forEach(function(entry) {
 		if (entry.user === email) {
-            user_exists = true;
+            userExists = true;
             entry.stats.forEach(function(stat) {
 				if (stat.game === game) {
-					game_exists = true;
-					stat.time_played += time_played;
+					gameExists = true;
+					stat.time_played += timePlayed;
 					return false;
 				}
             });
-			if (!game_exists) {
+			if (!gameExists) {
 				var stat = {
 					game: game,
-					time_played: time_played
+					time_played: timePlayed
 				};
 				entry.stats.push(stat);
 			}
 			return false;
 		}
     });
-	if (!user_exists) {
+	if (!userExists) {
 		var stat = {
 			game: game,
-			time_played: time_played
+			time_played: timePlayed
 		};
 		var obj = new Object();
 		obj.user = email;
@@ -397,77 +393,110 @@ function UpdateGameStatistics(email, game, time_played) {
     });
 }
 
-function AddFriendToFriendList(users, socket, email) {
-    var index = FindUserByEmail(users, socket.name);
-    var success = true;
-    if (users[index].friends.indexOf(email) !== -1) {
-        return false;
-    }
-
-    users[index].friends.push(email);
-    WriteToDatabase(users);
-    console.log("Dodan je prijatelj: " + socket.name + "->" + email);
-    return true;
-}
-
-function AddFriendUser(email, socket) {
+function addFriendUser(email, socket) {
     var post = new Object();
 
-    if(socket.name === email) {
-        var post = new Object();
+    if (socket.name === email) {
         post.connection = "0013";
         socket.write(JSON.stringify(post));
         return;
     }
 
-    var users = ReadDatabase();
-    var index = FindUserByEmail(users, email);
+    var users = readDatabase();
+    var user = getUserByEmail(users, email);
 
 
-    if(index === -1) {
+    if (!user) {
         post.connection = "0005";
-        socket.write(JSON.stringify(post))
-        return;
     } else {
-        if(AddFriendToFriendList(users, socket, email)) {
-            post.connection = "0009";
-            socket.write(JSON.stringify(post));
-        } else {
+        if (user.incoming_requests.indexOf(socket.name) !== -1) {    // friend request was previously sent by user and still hasn't been processed by another user
+            post.connection = "0014";
+        } else if (user.friends.indexOf(socket.name) !== -1) {    // users are already friends
             post.connection = "0010";
-            socket.write(JSON.stringify(post));
+        } else {  // friend request wasn't previously sent or it was already rejected by another user
+            var subject = getUserByEmail(users, socket.name);
+            if (subject.incoming_requests.indexOf(email) !== -1) {
+                var incomingRequests = subject.incoming_requests;
+                incomingRequests.splice(incomingRequests.indexOf(email), 1);
+                establishFriendship(socket, subject, user);
+                writeToDatabase(users);
+                return;
+            } else {
+                user.incoming_requests.push(socket.name);
+                post.connection = "0009";
+                sendUserFriendRequest(email, socket.name);
+                writeToDatabase(users);
+                console.log("User " + socket.name + " has sent friend request to user " + email);
+            }
         }
+    }
+    socket.write(JSON.stringify(post));
+}
+
+function sendUserFriendRequest(destination, interestedUser) {
+    var client = getClientByEmail(destination);
+    if (client) {
+        var post = new Object();
+        post.connection = "0017";
+        post.email = interestedUser;
+        client.socket.write(JSON.stringify(post));
     }
 }
 
-function SendFriendsStatus(socket) {
+function establishFriendship(socket, subject, object) {
+    object.friends.push(subject.email);
+    subject.friends.push(object.email);
+    sendInformationAboutNewlyAddedFriend(socket, object.email);
+    var client = getClientByEmail(object.email);
+    if (client) {
+        sendInformationAboutNewlyAddedFriend(client.socket, subject.email);
+    }
+    console.log("Users " + subject.email + " and " + object.email + " have now become friends");
+}
+
+function sendInformationAboutNewlyAddedFriend(socket, user) {
     var post = new Object();
-    var users = ReadDatabase();
-    var index = FindUserByEmail(users, socket.name);
+    post.connection = "0016";
+    post.email = user;
+    post.custom_status = getCurrUserStatus(user);
+    post.current_game = getCurrUserGameStatus(user);
+    socket.write(JSON.stringify(post));
+}
+
+function handleFriendRequest(data, socket) {
+    var users = readDatabase();
+    var subject = getUserByEmail(users, socket.name);
+    var incomingRequests = subject.incoming_requests;
+    incomingRequests.splice(incomingRequests.indexOf(data.email), 1);
+    if (data.accept) {
+        establishFriendship(socket, subject, getUserByEmail(users, data.email));
+    }
+    writeToDatabase(users);
+}
+
+function sendFriendsList(socket) {
+    var post = new Object();
+    var users = readDatabase();
+    var user = getUserByEmail(users, socket.name);
 
     var allFriends = [];
-    var friends = users[index].friends;
+    var friends = user.friends;
 
     friends.forEach(function(friend) {
         var object = new Object();
-        object.custom_status = "Offline";
-		object.current_game = "";
         object.email = friend;
-        clients.forEach(function(client) {
-            if (friend === client.email) {
-                object.custom_status = client.custom_status;
-				object.current_game = client.current_game;
-                return false;
-            }
-        });
+        object.custom_status = getCurrUserStatus(friend);
+		object.current_game = getCurrUserGameStatus(friend);
         allFriends.push(object);
     });
     post.connection = "0012";
     post.friends = allFriends;
+    post.friend_requests = user.incoming_requests;
     socket.write(JSON.stringify(post));
     return;
 }
 
-function GetClientByEmail(email) {
+function getClientByEmail(email) {
     var foundClient = false;
     clients.forEach(function(client) {
         if (client.email === email) {
@@ -519,37 +548,40 @@ var server = net.createServer(function(socket) {
 
             switch (data.connection) {
                 case "0001":
-                    AddUserToDataBase(data.email, data.password, socket);
+                    addUserToDataBase(data.email, data.password, socket);
                     break;
                 case "0004":
-                    LoginUser(data.email, data.password, data.port, socket);
+                    loginUser(data.email, data.password, socket);
                     break;
                 case "0008":
-                    AddFriendUser(data.email, socket);
+                    addFriendUser(data.email, socket);
                     break;
                 case "0011":
-                    SendFriendsStatus(socket);
+                    sendFriendsList(socket);
+                    break;
+                case "0015":
+                    handleFriendRequest(data, socket);
                     break;
                 case "0018":
-                    CheckForUpdateGamesList(data.size, data.datetime, socket);
+                    checkForGamesListUpdate(data.size, data.datetime, socket);
                     break;
                 case "0021":
-                    CreateChat(data.userlist, socket);
+                    createChat(data.userlist, socket);
                     break;
                 case "0023":
-                    SendMsg(data, socket);
+                    sendMessage(data, socket);
                     break;
                 case "0024":
-                    AddPersonsToChat(data, socket);
+                    addPersonsToChat(data, socket);
                     break;
                 case "0025":
-                    PersonQuitChat(data, socket);
+                    personQuitsChat(data, socket);
                     break;
                 case "0026":
-                    StatusChanged(socket.name, data.custom_status, data.current_game);
+                    handleStatusChange(socket.name, data.custom_status, data.current_game);
                     break;
                 case "0027":
-                    RequestForGameStatistics (data.email, socket);
+                    requestForGameStatistics (data.email, socket);
                     break;
             }
             lowerLimit = upperLimit;
@@ -559,17 +591,17 @@ var server = net.createServer(function(socket) {
 
     socket.on('close', function() {
         var email = socket.name;
-        console.log(email + " left.\n");
+        console.log(email + " left.");
         for(var i = 0; i < clients.length; i++) {
             if(clients[i]["email"] === email) {
-				if (CurrUserGame(email) !== "")		//if user exited application while (s)he was still in game
-					ChangeGameActivity(email,"");	//set that (s)he stopped playing game (because we can't track further game activity if (s)he is offline)
+				if (getCurrUserGameStatus(email) !== "")		//if user exited application while (s)he was still in game
+					changeGameActivity(email,"");	//set that (s)he stopped playing game (because we can't track further game activity if (s)he is offline)
                 clients.splice(i, 1);
                 break;
             }
         }
-        NotifyFriendsAboutChange(email);
-        NotifyChatRoomsAboutUserLogout(email);
+        notifyFriendsAboutChange(email);
+        notifyChatRoomsAboutUserLogout(email);
     });
 
     socket.on('error', function(err) {

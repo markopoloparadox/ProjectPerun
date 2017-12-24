@@ -10,7 +10,6 @@
 #include <QUdpSocket>
 #include <QSound>
 #include <thread>
-#include <vector>
 #include <QListWidgetItem>
 #include <QMutex>
 #include <QMap>
@@ -29,7 +28,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QTcpSocket* socket, qint16 port, bool aMode, QString name, QWidget *parent = 0);
+    explicit MainWindow(QTcpSocket* socket, bool aMode, QString name, QWidget *parent = 0);
     ~MainWindow();
     void check_game_status();
     void refresh_games_list();
@@ -38,6 +37,9 @@ public:
     QSound *snd;
     QMutex fileHandlingMutex;
     const QString m_Name;
+    QMap<QString, ChatBox*> groupChatMap;
+    gamelibrary* gameLibWin = NULL;
+    Ui::AddFriend* addfriendbox = NULL;
 
 public slots:
 
@@ -70,15 +72,11 @@ private:
     QTcpSocket* m_Socket;
     QString custom_status;  //defines custom status message which can user set and other can see (AFK, Selling piglets, Looking for match 2 vs 2)
     QString current_game;   //defines game which user currently plays - empty string if none is played
-    std::vector<ChatBox*> chatGroupsVector;
     QMap<QString, ChatBox*> privateChatMap;
     std::thread *gameActivityListenerThread;
     std::thread *globalShortcutListenerThread;
-    qint16 m_Port;
     bool adminMode;
     bool initialGamesListCheckingDone = false;
-    gamelibrary* gameLibWin;
-    Ui::AddFriend* addfriendbox;
     void send_notification_message (short tID, const char* custom_status, char* played_game_name, char* gameserver_info);
     void showGameStats (QJsonObject object);
     void process_new_chat_message (QJsonObject message);
@@ -90,6 +88,7 @@ private:
     QString getFileLocationFromRegistryKey(QString registryKey);
     void autoDetectGames();
     void start_program (const char* prog_name, const char* ip=NULL, const char* port=NULL);
+    void process_friend_request(QString username);
 };
 
 void ListenGameActivity (void *arg);
