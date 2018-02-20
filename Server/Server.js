@@ -2,7 +2,6 @@
 var ip = require("ip");
 var net = require("net");
 var fs = require("fs");
-var dgram = require('dgram');
 var passwordHash = require('password-hash');
 
 var clients = [];

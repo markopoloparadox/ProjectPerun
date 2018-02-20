@@ -232,12 +232,11 @@ MainWindow::MainWindow(QTcpSocket *socket, bool aMode, QString name, QWidget *pa
     ui->currentlyPlayingTBox->setWhatsThis("");
     ui->tableWidget->verticalHeader()->hide();
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableWidget->horizontalHeader()->setSectionResizeMode(0,QHeaderView::Stretch);
-    ui->tableWidget->horizontalHeader()->setSectionResizeMode(1,QHeaderView::Stretch);
-    ui->tableWidget->horizontalHeader()->setSectionResizeMode(2,QHeaderView::Stretch);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->currentlyPlayingTBox->setFocus();
 
-    gameActivityListenerThread = new std::thread (ListenGameActivity, this);
+    gameActivityListenerThread = new std::thread(ListenGameActivity, this);
 
     globalShortcutListenerThread = new std::thread(HandleHotkeys, this);
 }
