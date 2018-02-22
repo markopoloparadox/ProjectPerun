@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ChatBox</class>
- <widget class="QMainWindow" name="ChatBox">
+ <class>ChatWindow</class>
+ <widget class="QMainWindow" name="ChatWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -20,10 +20,10 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_4">
         <item>
-         <widget class="QTextBrowser" name="TextBrowser"/>
+         <widget class="QTextBrowser" name="textBrowser"/>
         </item>
         <item>
-         <widget class="QTextBrowser" name="UserListTextBrowser">
+         <widget class="QTextBrowser" name="userListTextBrowser">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -60,7 +60,7 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="AddUserToChatButton">
+             <widget class="QPushButton" name="addUserToChatButton">
               <property name="text">
                <string>Add</string>
               </property>
@@ -69,7 +69,7 @@
            </layout>
           </item>
           <item>
-           <widget class="QPushButton" name="ExitButton">
+           <widget class="QPushButton" name="exitButton">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -86,10 +86,10 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
-           <widget class="QLineEdit" name="EnterLineEdit"/>
+           <widget class="QLineEdit" name="enterLineEdit"/>
           </item>
           <item>
-           <widget class="QPushButton" name="EnterButton">
+           <widget class="QPushButton" name="enterButton">
             <property name="text">
              <string>Enter</string>
             </property>

@@ -1,4 +1,4 @@
-#include "funkcije.h"
+#include "UsefulFunctions.h"
 
 int binarySearch (std::fstream &file,const char* value,int first,int last, short recordSize) {  //should be called only indirectly by calling binarySearchWrapper function
     if (first>last) {
@@ -25,10 +25,9 @@ int binarySearchWrapper (std::fstream &file,const char* processName) {  //for se
     return binarySearch ( file , processName , 0 , file.tellg()/recordSize -1 , recordSize );
 }
 
-QString seconds_to_HMS(double durationDouble)
+QString convertSecondsToHmsFormat(double durationDouble)
 {
   int duration = (int) durationDouble;
-  QString res;
   int seconds = duration % 60;
   duration /= 60;
   int minutes = duration % 60;

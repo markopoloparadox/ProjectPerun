@@ -16,27 +16,27 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="QLabel" name="EmailLabel">
+     <widget class="QLabel" name="emailLabel">
       <property name="text">
        <string>Username:</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLineEdit" name="EmailLineEdit"/>
+     <widget class="QLineEdit" name="emailLineEdit"/>
     </item>
     <item>
-     <widget class="QLabel" name="PasswordLabel">
+     <widget class="QLabel" name="passwordLabel">
       <property name="text">
        <string>Password:</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLineEdit" name="PasswordLineEdit"/>
+     <widget class="QLineEdit" name="passwordLineEdit"/>
     </item>
     <item>
-     <widget class="QPushButton" name="LoginButton">
+     <widget class="QPushButton" name="loginButton">
       <property name="text">
        <string>Login</string>
       </property>
@@ -52,14 +52,14 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="RegisterButton">
+     <widget class="QPushButton" name="registerButton">
       <property name="text">
        <string>Register</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="StatusLabel">
+     <widget class="QLabel" name="statusLabel">
       <property name="text">
        <string/>
       </property>

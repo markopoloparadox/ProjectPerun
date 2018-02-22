@@ -8,23 +8,23 @@
 #include <QJsonObject>
 
 namespace Ui {
-class AddFriend;
+class AddFriendWindow;
 }
 
-class AddFriend : public QMainWindow
+class AddFriendWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit AddFriend(QTcpSocket* socket, QWidget *parent = 0);
-    ~AddFriend();
-    Ui::AddFriend* ui;
+    explicit AddFriendWindow(QTcpSocket* socket, QWidget *parent = 0);
+    ~AddFriendWindow();
+    Ui::AddFriendWindow* ui;
 
 private slots:
-    void on_AddButton_clicked();
+    void on_addButton_clicked();
 
 private:
-    QTcpSocket* m_Socket;
+    QTcpSocket* socket;
 };
 
 #endif // ADDFRIEND_H

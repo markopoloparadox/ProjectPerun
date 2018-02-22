@@ -25,7 +25,7 @@ int binarySearch (std::fstream &file,const char* value,int first,int last, short
 
 int binarySearchWrapper (std::fstream &file,const char* processName);
 
-QString seconds_to_HMS (double durationDouble);
+QString convertSecondsToHmsFormat (double durationDouble);
 
 char* stringToLowerCase(char* string);
 

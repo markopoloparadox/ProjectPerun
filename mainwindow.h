@@ -13,11 +13,11 @@
 #include <QListWidgetItem>
 #include <QMutex>
 #include <QMap>
-#include "ui_addfriend.h"
-#include "chatbox.h"
-#include "game_detection.h"
-#include "gamelibrary.h"
-#include "funkcije.h"
+#include "ui_AddFriendWindow.h"
+#include "ChatWindow.h"
+#include "GameDetection.h"
+#include "GameLibraryWindow.h"
+#include "UsefulFunctions.h"
 
 namespace Ui {
 class MainWindow;
@@ -28,37 +28,37 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QTcpSocket* socket, bool aMode, QString name, QWidget *parent = 0);
+    explicit MainWindow(QTcpSocket* socket, bool adminMode, QString username, QWidget *parent = 0);
     ~MainWindow();
-    void check_game_status();
-    void refresh_games_list();
-    void check_if_newer_games_list_exist();
+    void checkGameStatus();
+    void refreshGamesList();
+    void checkIfNewerGamesListExist();
     Ui::MainWindow *ui;
     QSound *snd;
     QMutex fileHandlingMutex;
-    const QString m_Name;
-    QMap<QString, ChatBox*> groupChatMap;
-    gamelibrary* gameLibWin = NULL;
-    Ui::AddFriend* addfriendbox = NULL;
+    const QString username;
+    QMap<QString, ChatWindow*> groupChatMap;
+    GameLibraryWindow* gameLibWin = NULL;
+    Ui::AddFriendWindow* addFriendBox = NULL;
 
 public slots:
 
 private slots:
-    void on_AddFriendButton_clicked();
+    void on_addFriendButton_clicked();
 
-    void on_actionConfigure_game_library_triggered();
+    void on_actionConfigureGameLibrary_triggered();
 
     void on_currentStatusCBox_activated(const QString &arg1);
 
     void on_listWidget_itemDoubleClicked(QListWidgetItem *item);
 
-    void on_UserStatsButton_clicked();
+    void on_userStatsButton_clicked();
 
-    void on_JoinFriendButton_clicked();
+    void on_joinFriendButton_clicked();
 
-    void on_actionMy_Stats_triggered();
+    void on_actionMyStats_triggered();
 
-    void on_InstantChatButton_clicked();
+    void on_instantChatButton_clicked();
 
     void on_actionDisconnect_triggered();
 
@@ -66,32 +66,32 @@ private slots:
 
     void on_tableWidget_cellDoubleClicked(int row, int column);
 
-    void onTcpMessageReceived();
+    void on_tcpMessage_received();
 
 private:
-    QTcpSocket* m_Socket;
-    QString custom_status;  //defines custom status message which can user set and other can see (AFK, Selling piglets, Looking for match 2 vs 2)
-    QString current_game;   //defines game which user currently plays - empty string if none is played
-    QMap<QString, ChatBox*> privateChatMap;
+    QTcpSocket* socket;
+    QString customStatus;  //defines custom status message which can user set and other can see (AFK, Selling piglets, Looking for match 2 vs 2)
+    QString currentGame;   //defines game which user currently plays - empty string if none is played
+    QMap<QString, ChatWindow*> privateChatMap;
     std::thread *gameActivityListenerThread;
     std::thread *globalShortcutListenerThread;
     bool adminMode;
     bool initialGamesListCheckingDone = false;
-    void send_notification_message (short tID, const char* custom_status, char* played_game_name, char* gameserver_info);
+    void sendNotificationMessage (short tID, const char* customStatus, char* playedGameName, char* gameserverInfo);
     void showGameStats (QJsonObject object);
-    void process_new_chat_message (QJsonObject message);
-    void refresh_friends_list (QJsonObject message);
+    void handleNewChatMessage (QJsonObject message);
+    void refreshFriendsList (QJsonObject message);
     void requestGameActivityInfo (QString email);
-    void request_friends_list ();
-    void get_friends_list(QJsonObject message);
-    void update_supported_games_list(QJsonObject message, int packetSize);
+    void requestFriendsList ();
+    void getFriendsList(QJsonObject message);
+    void updateSupportedGamesList(QJsonObject message, int packetSize);
     QString getFileLocationFromRegistryKey(QString registryKey);
     void autoDetectGames();
-    void start_program (const char* prog_name, const char* ip=NULL, const char* port=NULL);
-    void process_friend_request(QString username);
+    void startProgram (const char* progName, const char* ip=NULL, const char* port=NULL);
+    void processFriendRequest(QString username);
 };
 
-void ListenGameActivity (void *arg);
-void HandleHotkeys (void *arg);
+void listenGameActivity (void *arg);
+void handleHotkeys (void *arg);
 
 #endif // MAINWINDOW_H

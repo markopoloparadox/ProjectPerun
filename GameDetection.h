@@ -12,7 +12,7 @@
 #include <unistd.h>
 #endif
 #include <memory>
-#include "funkcije.h"
+#include "UsefulFunctions.h"
 
 #if defined (_WIN32)
 
@@ -27,9 +27,9 @@ void sleep(int seconds);
 #endif
 
 
-char* game_running_in_background(char* process_name=NULL);
+char* getNameOfGameRunningInBackground(char* processName=NULL);
 
-char* found_gameserver_address (char* gameprocess_name);
+char* foundGameserverAddress (char* gameprocessName);
 
 #endif // GAME_DETECTION
 

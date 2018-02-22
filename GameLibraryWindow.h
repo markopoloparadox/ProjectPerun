@@ -5,17 +5,17 @@
 #include <QAbstractButton>
 
 namespace Ui {
-class gamelibrary;
+class GameLibraryWindow;
 }
 
-class gamelibrary : public QDialog
+class GameLibraryWindow : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit gamelibrary(QWidget *parent = 0);
-    ~gamelibrary();
-    void fill_table();
+    explicit GameLibraryWindow(QWidget *parent = 0);
+    ~GameLibraryWindow();
+    void fillTable();
 
 private slots:
 
@@ -28,7 +28,7 @@ private slots:
     void on_checkUpdateButton_clicked();
 
 private:
-    Ui::gamelibrary *ui;
+    Ui::GameLibraryWindow *ui;
     short numOfRows;
 };
 

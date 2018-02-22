@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>AddFriend</class>
- <widget class="QMainWindow" name="AddFriend">
+ <class>AddFriendWindow</class>
+ <widget class="QMainWindow" name="AddFriendWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -37,24 +37,24 @@
        </widget>
       </item>
       <item>
-       <widget class="QLineEdit" name="EmailLineEdit"/>
+       <widget class="QLineEdit" name="emailLineEdit"/>
       </item>
       <item>
-       <widget class="QLabel" name="StatusLabel">
+       <widget class="QLabel" name="statusLabel">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="AddButton">
+       <widget class="QPushButton" name="addButton">
         <property name="text">
          <string>Add</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="CancelButton">
+       <widget class="QPushButton" name="cancelButton">
         <property name="text">
          <string>Cancel</string>
         </property>

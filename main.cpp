@@ -2,7 +2,7 @@
 //this application package is using 2 processes: main process (which contains 2 threads that are previously mentioned) and additional process (which is Visual Basic Service running batch file in background that is generating relevant data) - stable communication between them is ensured using file properties (its existence and lock funcionality)
 //if user runs application with administrative privileges, then (s)he can use all features; otherwise: all except information about gameserver on which is user playing (it cannot be collected with standard user privileges)
 
-#include "loginwindow.h"
+#include "LoginWindow.h"
 #include <QApplication>
 #include <QProcess>
 #include <fstream>
@@ -32,7 +32,7 @@ std::string exec(QStringList cmdRows, bool returnOutput = false) {  // this func
 }
 #endif
 
-bool running_as_administrator () {      //if user can successfully run following command, he is administrator (so (s)he will probably be able to run them again in future)
+bool isRunningAsAdministrator () {      //if user can successfully run following command, he is administrator (so (s)he will probably be able to run them again in future)
 #if defined (__linux__)
     return !getuid();   //returns 0 if user is root (superuser)
 #endif
@@ -54,7 +54,7 @@ bool running_as_administrator () {      //if user can successfully run following
 int main(int argc, char *argv[])
 {
     QApplication::addLibraryPath(".");
-    bool adminMode = running_as_administrator();
+    bool adminMode = isRunningAsAdministrator();
 
     if (adminMode==true) {
         std::fstream file;

@@ -1,16 +1,16 @@
-#include "game_detection.h"
+#include "GameDetection.h"
 #include <QDebug>
 
 #if defined (_WIN32)
-char* game_running_in_background(char* process_name) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
-    bool game_specified = true;
-    if (process_name==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
-        game_specified = false;         //so we are setting that game is specified - we need to find it out in this function call
+char* getNameOfGameRunningInBackground(char* processName) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
+    bool gameSpecified = true;
+    if (processName==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
+        gameSpecified = false;         //so we are setting that game is specified - we need to find it out in this function call
     }
     bool found = false;
 
     std::fstream file;
-    if (game_specified == false) {
+    if (!gameSpecified) {
         file.open("gameslist.dat",std::ios::in | std::ios::binary);
     }
 
@@ -28,18 +28,18 @@ char* game_running_in_background(char* process_name) {  //background...does not 
                         tmp[i]+=32;
                     }
                 }*/
-                if (game_specified==false) {
+                if (!gameSpecified) {
                     if( binarySearchWrapper(file,tmp)!=-1 ) {  //Check if currently observed process is game which is supported
                         //Looks like some game is running!
                         found = true;
-                        process_name = new char [50];
-                        strcpy(process_name,tmp);
+                        processName = new char [50];
+                        strcpy(processName,tmp);
                         //We're done...
                         break;
                     }
                 }
                 else {
-                    if (strcmp(tmp,process_name)==0) {
+                    if (strcmp(tmp,processName)==0) {
                         found = true;
                         break;
                     }
@@ -53,15 +53,15 @@ char* game_running_in_background(char* process_name) {  //background...does not 
 
         ::CloseHandle(hSnapshot);
     }
-    if (game_specified==false) {
+    if (!gameSpecified) {
         file.close();
     }
 
-    if (found==true) {
-        return process_name;
+    if (found) {
+        return processName;
     }
     else {
-        if (game_specified==true) {     //if user exited game that he was playing till now
+        if (gameSpecified) {     //if user exited game that he was playing till now
             return new char[1] {'\0'};        //can't return NULL because result will be used as parameter in strcmp(const char*,const char*) function (NULL value would result with crash)
         }
         else {              //if there is currently no game active (and none was played in last few seconds)
@@ -76,44 +76,44 @@ void sleep(int seconds) {
 #endif
 
 #if defined (__linux__)
-char* game_running_in_background(char* process_name) {
-    if (process_name==NULL) {       //if we haven't specified name of game for which we are checking its existence (i.e. if we want to find if there is any active game currently running)
+char* getNameOfGameRunningInBackground(char* processName) {
+    if (processName==NULL) {       //if we haven't specified name of game for which we are checking its existence (i.e. if we want to find if there is any active game currently running)
         fstream file;
         tGames gameRecord;
         file.open("gameslist.dat",std::ios::in | std::ios::binary);
         while (true) {
             std::stringstream command;
             file.read( (char*)&gameRecord,sizeof(tGames) );
-            if (file.eof()==true) {
+            if (file.eof()) {
                 file.clear();
                 file.close();
                 return NULL;        //none game was found
             }
             command << "ps --no-headers -p $(pidof " << gameRecord.processName << ")";
             if (system(command.str().c_str())==0) {     //if command has successfully run - i.e. if processName from file exists
-                process_name = new char [50];
-                strcpy(process_name, gameRecord.processName);
-                return process_name;    //return process name of currently active game
+                processName = new char [50];
+                strcpy(processName, gameRecord.processName);
+                return processName;    //return process name of currently active game
             }
         }
         file.close();
     }
     else {
         std::stringstream command;
-        command << "ps --no-headers -p $(pidof " << process_name <<")";
-        return !system(command.str().c_str()) ? process_name : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'process_name' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
+        command << "ps --no-headers -p $(pidof " << processName <<")";
+        return !system(command.str().c_str()) ? processName : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'process_name' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
     }
 }
 #endif
 
-/*bool is_still_active (const char* process_name) {
+/*bool isStillActive (const char* processName) {
     std::stringstream command, output;
 #if defined (__linux__)
-    command << "pstree | grep -q \"" << process_name << "\"";
+    command << "pstree | grep -q \"" << processName << "\"";
     return system(command.str().c_str())==0;    //system() will return 0 if process is still running, -1 (what is also 'true') if isn't
 #endif
 #if defined (_WIN32)
-    command << "start /MIN /B tasklist /FI \"ImageName eq " << process_name << "\" /NH";
+    command << "start /MIN /B tasklist /FI \"ImageName eq " << processName << "\" /NH";
     std::shared_ptr<FILE> pipe(popen(command.str().c_str(), "r"), pclose);
     if (!pipe) {
         output << "ERROR";
@@ -123,7 +123,7 @@ char* game_running_in_background(char* process_name) {
         if (fgets(buffer, 128, pipe.get()) != NULL)
             output << buffer;
     }
-    if (output.str().find(process_name,0)==0) {   //process name should be at the beginning of grabbed string if process is running (so its starting position should be 0)
+    if (output.str().find(processName,0)==0) {   //process name should be at the beginning of grabbed string if process is running (so its starting position should be 0)
         return true;
     }
     else {
@@ -132,7 +132,7 @@ char* game_running_in_background(char* process_name) {
 #endif
 }*/
 
-/*bool start_packet_tracing () {
+/*bool startPacketTracing () {
     //path = QDir::currentPath().toStdString();
     //start with packet tracing
 //    start_tracing << "netsh trace start scenario=NetConnection capture=yes report=no persistent=yes maxSize=1 overwrite=yes traceFile=" << path << "\\file.etl";   //this command takes too long to generate required .XML file (about 30 secounds)
@@ -169,8 +169,8 @@ char* game_running_in_background(char* process_name) {
 
 }*/
 
-/*char* found_gameserver_address (char* gameprocess_name) {  //search for gameserver's public IP address of game currently playing; return true if it exists (IP address and Port of that gameserver are later accessible via global objects destIP and destPort)
-    start_packet_tracing();
+/*char* foundGameserverAddress (char* gameprocessName) {  //search for gameserver's public IP address of game currently playing; return true if it exists (IP address and Port of that gameserver are later accessible via global objects destIP and destPort)
+    startPacketTracing();
     std::string destIP, destPort, asStringVal, appLayerAppName;
     QFile *xmlFile = new QFile("network_traffic.xml");
         if (!xmlFile->open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -223,9 +223,9 @@ char* game_running_in_background(char* process_name) {
                             i+=2;  //asString value is in following type: p.a.t.h./.p.r.o.c.e.s.s...e.x.e... (each symbol on even place has to be ignored)
                         }
                         asStringVal.resize(asStringVal.length()-1);
-                        if (strcmp(asStringVal.c_str(),gameprocess_name)==0) {
+                        if (strcmp(asStringVal.c_str(),gameprocessName)==0) {
                             //if current analysed packet is used by currently played game
-                            if (validDestAddr==true) {  //preview IP address of game server only if its IP address is public
+                            if (validDestAddr) {  //preview IP address of game server only if its IP address is public
                                 break;  //go out of this while structure to remaining code in this function (clearing XMLreader and closing XMLfile)
                             }
                         }
@@ -258,9 +258,9 @@ char* game_running_in_background(char* process_name) {
 }*/
 
 #if defined (_WIN32)
-char* found_gameserver_address(char* gameprocess_name) {  //XML file with network traffic is read from END to beginning
-    gameprocess_name = stringToLowerCase(gameprocess_name);         //distributions of Windows operating system make no difference between uppercase and lowercase strings, so all strings are transformed into lowercase (also, names of processes in generated XML file after tracing network traffic are represented in lowercase, so that's the reason why we are performing trasformation here)
-    //start_packet_tracing();     //first we need to track network packets and generate required XML file - meanwhile network tracking is done by separate process which is run at application start-up
+char* foundGameserverAddress(char* gameprocessName) {  //XML file with network traffic is read from END to beginning
+    gameprocessName = stringToLowerCase(gameprocessName);         //distributions of Windows operating system make no difference between uppercase and lowercase strings, so all strings are transformed into lowercase (also, names of processes in generated XML file after tracing network traffic are represented in lowercase, so that's the reason why we are performing trasformation here)
+    //startPacketTracing();     //first we need to track network packets and generate required XML file - meanwhile network tracking is done by separate process which is run at application start-up
     int numOfTabs = 0;  //number of tab spaces which are set next to each other - this will be used to indice end of section with relevant data
     std::fstream file;
     file.open("network_traffic.xml",std::ios::app | std::ios::in);  //append mode is used to detect if file is currently still written by other process (netsh wfp)
@@ -271,13 +271,13 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
         file.open("network_traffic.xml",std::ios::app | std::ios::in);  //again we use append mode to catch potential error
     }
     file.seekg(0,std::ios::end);      //we will start from the end of file because answer is there (and if it isn't, then it also isn't in whole file (because most of file contains unnecessary data)
-    int filesize = file.tellg();
-    int i =filesize-1;    //position from which is file pointer reading (it's necessary to set it one byte before EOF (end of file), so it won't read trash character which is behind range of file
+    int fileSize = file.tellg();
+    int i =fileSize-1;    //position from which is file pointer reading (it's necessary to set it one byte before EOF (end of file), so it won't read trash character which is behind range of file
     char searchedOne[200];       //that will be text we will look for (it will point to packet related to game we are playing (if we are playing any))
     short j;    //this will be used as index of character in string we are iterating through
-    short searchedOneStrLen = strlen(gameprocess_name);     //string length of name of game process
+    short searchedOneStrLen = strlen(gameprocessName);     //string length of name of game process
     for (j=0 ; j<searchedOneStrLen ; j++ ) {        //iterate through each character of name of game process
-        searchedOne[j*2] = gameprocess_name[j];     //save on each even position j-th character
+        searchedOne[j*2] = gameprocessName[j];     //save on each even position j-th character
         searchedOne[j*2+1] = '.';                   //save on each odd position dot ('.')   - because in text file in which we will search, after every character comes dot (probably because process name is usually in UTF16 (each character takes 2 bytes), so here is each character represented with dot next to itself)
     }
     searchedOne[j*2] = searchedOne[j*2+1] = '.';    //because after each process name there are also 2 another dots (probably because there was NullString which was encoded to dot)
@@ -289,7 +289,7 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
     short endingBlockIdentifierNumber = searchedOneStrLen-11;   // 11 is string length of "</asString>" which is ending identifier of element asString
     short type = 0;	//0...processName , 1...remotePort , 2...remoteAddress
     char port[6];
-    char ip_addr[16];
+    char ipAddress[16];
     bool endSoon = false;   //firstly we will assume that end is not yet near
     while (true) {      //"infinite loop", but it will be cancelled with "break" command (in every condition!) - eventually it could do wrong if network_traffic.xml file isn't properly created)
         file.seekg(i);      //we put file pointer for reading on i-th position
@@ -303,7 +303,7 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
                 if (numOfTabs==2) {     //then check if there were exactly 2 tab spaces before (because all other XML element inside of ending block have 3 or more tab spaces at the beginning of line)
                     file.close();   //we won't need this file anymore
                     qDebug () << "no valid server information found";
-                    delete [] gameprocess_name;     //this pointer variable has got new pointing address at the beginning of this function - content of that new location has to be deleted and in routine (from which was this function called), pointing variable will still have address of location to which it was pointing before (it's content won't be changed) as pointer was forwarded by value (not by reference)
+                    delete [] gameprocessName;     //this pointer variable has got new pointing address at the beginning of this function - content of that new location has to be deleted and in routine (from which was this function called), pointing variable will still have address of location to which it was pointing before (it's content won't be changed) as pointer was forwarded by value (not by reference)
                     return NULL;    //and exit function - no appropriate address was found (game wasn't played via Internet)
                 }
                 else {  //if there were more than 2 tab spaces in that line
@@ -349,40 +349,40 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
                     file.get(c);    //save previous chracter in variable 'c'
                 }
                 for (short l = 0 ; l<k ; l++) { //iterate through array which contains characters of IPv4 address but in reversed order
-                    ip_addr[l] = tmp[k-1-l];    //put last character on first place (beause 'tmp' array was in reversed order
+                    ipAddress[l] = tmp[k-1-l];    //put last character on first place (beause 'tmp' array was in reversed order
                 }
-                ip_addr[k] = '\0';      //set NullString at the end what represents end of string
+                ipAddress[k] = '\0';      //set NullString at the end what represents end of string
 
-                bool localAddr = false;     //assume that found address is not local
-                char private_addresses[3][10] = { "192.168.\0" , "127.\0" , "10.\0" };      //list of local addresses (those can't exist on Internet)
+                bool addressIsLocal = false;     //assume that found address is not local
+                char privateAddresses[3][10] = { "192.168.\0" , "127.\0" , "10.\0" };      //list of local addresses (those can't exist on Internet)
                 for (short l = 0 ; l<3 ; l++) {     //iterate through all private addresses
                     unsigned int m;
-                    for (m = 0 ; m<strlen(private_addresses[l]) && ip_addr[m]==private_addresses[l][m] ; m++ ) {    //iterate through each character of private address and compare it with found address
+                    for (m = 0 ; m<strlen(privateAddresses[l]) && ipAddress[m]==privateAddresses[l][m] ; m++ ) {    //iterate through each character of private address and compare it with found address
                         ;       //do nothing specific
                     }
-                    if (m==strlen(private_addresses[l])) {    //if found address is private
-                        localAddr = true;       //then set that it is private
+                    if (m==strlen(privateAddresses[l])) {    //if found address is private
+                        addressIsLocal = true;       //then set that it is private
                         break;      //we don't need to compare it with other private addresses (because it can't any other)
                     }
                 }
-                if (localAddr==false) {     //if we still treat found IP address as public, check if it is maybe in range 172.16.0.0 - 172.31.255.255
-                    char complex_private_address[6] = "172.\0";     //that's the beginning of that type of private address
+                if (!addressIsLocal) {     //if we still treat found IP address as public, check if it is maybe in range 172.16.0.0 - 172.31.255.255
+                    char complexPrivateAddress[6] = "172.\0";     //that's the beginning of that type of private address
                     short l;
-                    for (l = 0 ; l<3 && complex_private_address[l]==ip_addr[l] ; l++) {     //check how many characters does found address and this private address have in common
+                    for (l = 0 ; l<3 && complexPrivateAddress[l]==ipAddress[l] ; l++) {     //check how many characters does found address and this private address have in common
                         ;
                     }
                     if (l==3) {     //if they have same first part of address (then this address might be private)
                         char secondPart[4];     //store second part of address in this array
-                        secondPart[0] = ip_addr[4];
-                        secondPart[1] = ip_addr[5];
-                        secondPart[2] = ip_addr[6];
+                        secondPart[0] = ipAddress[4];
+                        secondPart[1] = ipAddress[5];
+                        secondPart[2] = ipAddress[6];
                         secondPart[3] = '\0';
                         if ( atoi(secondPart)>15 && atoi(secondPart)<32 ) {     //check if that second part of address is between 15 and 32 (excluding them)
-                            localAddr = true;       //then set that found address is private
+                            addressIsLocal = true;       //then set that found address is private
                         }
                     }
                 }
-                if (localAddr==true) {      //if found address is private
+                if (addressIsLocal) {      //if found address is private
                     type = 0;       //then we need to find another (if there exists any), so we are again for packets of game we are playing
                     i--;    //we decrement position where file pointer will read next character
                     strcpy(searchedOne,gameProcessasString);    //currently searchedOne contains '</remoteIPv4>' (because IP has been searched of the item for which we suspected that has valid information (but it didn't have it), so we are again searching for item with process_name that we are looking for)
@@ -390,14 +390,14 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
                     continue;          //we go back to the main loop where we are iterating through each character of file (on the place where we left)
                 }
 
-                char* ip_and_port = new char [22];  //create container where IP address and port will be stored (and returned from this function)
+                char* ipAndPort = new char [22];  //create container where IP address and port will be stored (and returned from this function)
                 file.close();   //we won't need this file anymore
-                strcpy(ip_and_port,ip_addr);    //copy IP address in it
-                strcat(ip_and_port,":");    //IP address and port number are usually divided with semi-colon sign (":")
-                strcat(ip_and_port,port);   //attach on that string port number, too
-                qDebug () << "valid server found: " << ip_and_port;
-                delete [] gameprocess_name;     //this pointer variable has got new pointing address at the beginning of this function - content of that new location has to be deleted and in routine (from which was this function called), pointing variable will still have address of location to which it was pointing before (it's content won't be changed) as pointer was forwarded by value (not by reference)
-                return ip_and_port;     //return that IP address with port number
+                strcpy(ipAndPort,ipAddress);    //copy IP address in it
+                strcat(ipAndPort,":");    //IP address and port number are usually divided with semi-colon sign (":")
+                strcat(ipAndPort,port);   //attach on that string port number, too
+                qDebug () << "valid server found: " << ipAndPort;
+                delete [] gameprocessName;     //this pointer variable has got new pointing address at the beginning of this function - content of that new location has to be deleted and in routine (from which was this function called), pointing variable will still have address of location to which it was pointing before (it's content won't be changed) as pointer was forwarded by value (not by reference)
+                return ipAndPort;     //return that IP address with port number
             }
         }
         i--;    //each time in loop we decrement position of character (because in each loop we read at least 1 character
@@ -406,7 +406,7 @@ char* found_gameserver_address(char* gameprocess_name) {  //XML file with networ
 #endif
 
 #if defined (__linux__)
-char* found_gameserver_address(char* gameprocess_name) {
+char* foundGameserverAddress(char* gameprocess_name) {
     //appropriate solution still isn't found!!!
 }
 #endif

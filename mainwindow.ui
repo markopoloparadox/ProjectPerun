@@ -69,14 +69,14 @@
             <item>
              <layout class="QVBoxLayout" name="verticalLayout">
               <item>
-               <widget class="QPushButton" name="AddFriendButton">
+               <widget class="QPushButton" name="addFriendButton">
                 <property name="text">
                  <string>Add</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="InstantChatButton">
+               <widget class="QPushButton" name="instantChatButton">
                 <property name="text">
                  <string>Chat</string>
                 </property>
@@ -107,14 +107,14 @@
             <item row="1" column="0">
              <layout class="QHBoxLayout" name="horizontalLayout">
               <item>
-               <widget class="QPushButton" name="UserStatsButton">
+               <widget class="QPushButton" name="userStatsButton">
                 <property name="text">
                  <string>Show user's game stats</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="JoinFriendButton">
+               <widget class="QPushButton" name="joinFriendButton">
                 <property name="text">
                  <string>Join server over friend</string>
                 </property>
@@ -230,15 +230,15 @@
     <property name="title">
      <string>Main</string>
     </property>
-    <addaction name="actionMy_Stats"/>
+    <addaction name="actionMyStats"/>
     <addaction name="actionDisconnect"/>
     <addaction name="actionExit"/>
    </widget>
-   <widget class="QMenu" name="menuTools">
+   <widget class="QMenu" name="menuSettings">
     <property name="title">
-     <string>Tools</string>
+     <string>Settings</string>
     </property>
-    <addaction name="actionConfigure_game_library"/>
+    <addaction name="actionConfigureGameLibrary"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -247,7 +247,7 @@
     <addaction name="actionHelp"/>
    </widget>
    <addaction name="menuDisconnect"/>
-   <addaction name="menuTools"/>
+   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -261,12 +261,12 @@
     <string>Help</string>
    </property>
   </action>
-  <action name="actionConfigure_game_library">
+  <action name="actionConfigureGameLibrary">
    <property name="text">
     <string>Configure game library</string>
    </property>
   </action>
-  <action name="actionMy_Stats">
+  <action name="actionMyStats">
    <property name="text">
     <string>My Stats</string>
    </property>

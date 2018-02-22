@@ -7,7 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTime>
-#include "mainwindow.h"
+#include "MainWindow.h"
 
 namespace Ui {
 class LoginWindow;
@@ -22,13 +22,13 @@ public:
     ~LoginWindow();
 
 private slots:
-    void RegisterAnAccount();
+    void registerAnAccount();
 
-    void Login();
+    void login();
 
 private:
     Ui::LoginWindow *ui;
-    QTcpSocket* m_Socket;
+    QTcpSocket* socket;
     bool adminMode;
     const char* const serverAddress = "165.227.174.7";
     const ushort serverPort = 1337;

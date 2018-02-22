@@ -1,39 +1,37 @@
-#include "loginwindow.h"
-#include "ui_loginwindow.h"
+#include "LoginWindow.h"
+#include "ui_LoginWindow.h"
 #include <QMessageBox>
 
 
 LoginWindow::LoginWindow(bool adminMode, QWidget *parent) :
     QMainWindow(parent),
+    socket(new QTcpSocket()),
+    adminMode(adminMode),    //value of adminMode as a parameter (that was sent from main() function) is set to adminMode attribute of LoginWindow (that's required because it will be forwarded next to instance of MainWindow class)
     ui(new Ui::LoginWindow)
 {
-    ui->setupUi(this);
+    this->ui->setupUi(this);
     this->setWindowFlags(Qt::Dialog);
     this->setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-    ui->PasswordLineEdit->setEchoMode(QLineEdit::Password); //hides entered characters while typing
+    this->ui->passwordLineEdit->setEchoMode(QLineEdit::Password); //hides entered characters while typing
 
-    this->m_Socket = new QTcpSocket();
-
-    connect(ui->RegisterButton, SIGNAL(clicked()), this, SLOT(RegisterAnAccount()));
-    connect(ui->LoginButton, SIGNAL(clicked()), this, SLOT(Login()));
-    connect(ui->PasswordLineEdit, SIGNAL(returnPressed()), this, SLOT(Login()));
-    connect(ui->EmailLineEdit, SIGNAL(returnPressed()), this, SLOT(Login()));
+    connect(this->ui->registerButton, SIGNAL(clicked()), this, SLOT(registerAnAccount()));
+    connect(this->ui->loginButton, SIGNAL(clicked()), this, SLOT(login()));
+    connect(this->ui->passwordLineEdit, SIGNAL(returnPressed()), this, SLOT(login()));
+    connect(this->ui->emailLineEdit, SIGNAL(returnPressed()), this, SLOT(login()));
 
     if (adminMode==false) {
         QMessageBox msgBox;
         msgBox.setText("To use all features that application contains, please run this application with administative privileges.");
         msgBox.exec();
     }
-    this->adminMode = adminMode;    //value of adminMode as a parameter (that was sent from main() function) is set to adminMode attribute of LoginWindow (that's required because it will be forwarded next to instance of MainWindow class)
-
 }
 
 LoginWindow::~LoginWindow()
 {
-    delete ui;
+    delete this->ui;
 }
 
-void LoginWindow::RegisterAnAccount() {
+void LoginWindow::registerAnAccount() {
     /*
      * Qstring za razliku od std::string nam dopusta rad s unicodom, ima korisnije metode te
      * daje bolje performanse. Također, brojne funkcije koje kao ulaz traže znakovni niz, zapravo
@@ -42,13 +40,13 @@ void LoginWindow::RegisterAnAccount() {
      *
     */
     QString email, password;
-    email = ui->EmailLineEdit->text();
-    password = ui->PasswordLineEdit->text();
+    email = this->ui->emailLineEdit->text();
+    password = this->ui->passwordLineEdit->text();
 
     //Treba upozoriti korisnika ako je jedan teksutalni okvir prazan
-    if(email == "" || password == "") {
-        ui->StatusLabel->setText("Please enter all the information!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+    if(email.isEmpty() || password.isEmpty()) {
+        this->ui->statusLabel->setText("Please enter all the information!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
         return;
     }
 
@@ -62,13 +60,13 @@ void LoginWindow::RegisterAnAccount() {
      * vrijeme(timeout je određen brojem u zagradi).
      *
     */
-    m_Socket->connectToHost(this->serverAddress, this->serverPort);
-    if(m_Socket->waitForConnected(3000))
+    this->socket->connectToHost(this->serverAddress, this->serverPort);
+    if(this->socket->waitForConnected(3000))
         qDebug() << "Connection with server is successfully established!";
     else {
         qDebug() << "Connection with server could not be established!";
-        ui->StatusLabel->setText("Server is offline!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+        this->ui->statusLabel->setText("Server is offline!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
         return;
     }
 
@@ -109,23 +107,23 @@ void LoginWindow::RegisterAnAccount() {
      * odnosno vrši se sinkronizacija.
      *
     */
-    m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(1000);
-    m_Socket->waitForReadyRead(3000);
+    this->socket->write(packet);
+    this->socket->waitForBytesWritten(1000);
+    this->socket->waitForReadyRead(3000);
 
     /*
      * readAll() metoda čita bajtovni niz i sprema ga. Ostalo bi trebalo biti sve jasno
      *
     */
-    packet = m_Socket->readAll();
+    packet = this->socket->readAll();
     document = QJsonDocument::fromJson(packet.constData());
     object = document.object();
     if(object["connection"] == "0002") {
-        ui->StatusLabel->setText("User with that Email adress already exists!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+        this->ui->statusLabel->setText("User with that Email adress already exists!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
     } else if (object["connection"] == "0003") {
-        ui->StatusLabel->setText("User has been added!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : green; }");
+        this->ui->statusLabel->setText("User has been added!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : green; }");
     }
 
     /*
@@ -133,32 +131,32 @@ void LoginWindow::RegisterAnAccount() {
      * ga.
      *
     */
-    m_Socket->disconnectFromHost();
-    if(m_Socket->state() == QAbstractSocket::UnconnectedState
-        || m_Socket->waitForDisconnected(1000))
+    this->socket->disconnectFromHost();
+    if(this->socket->state() == QAbstractSocket::UnconnectedState || this->socket->waitForDisconnected(1000)) {
         qDebug() << "Disconnected!";
-    m_Socket->close();
+    }
+    this->socket->close();
 
 }
 
-void LoginWindow::Login() {
+void LoginWindow::login() {
     QString email, password;
-    email = ui->EmailLineEdit->text();
-    password = ui->PasswordLineEdit->text();
+    email = this->ui->emailLineEdit->text();
+    password = this->ui->passwordLineEdit->text();
 
-    if(email == "" || password == "") {
-        ui->StatusLabel->setText("Please enter all the information!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
+    if(email.isEmpty() || password.isEmpty()) {
+        this->ui->statusLabel->setText("Please enter all the information!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : blue; }");
         return;
     }
 
-    m_Socket->connectToHost(this->serverAddress, this->serverPort);
-    if(m_Socket->waitForConnected(3000))
+    this->socket->connectToHost(this->serverAddress, this->serverPort);
+    if(this->socket->waitForConnected(3000))
         qDebug() << "Connection with server is successfully established!";
     else {
         qDebug() << "Connection with server could not be established!";
-        ui->StatusLabel->setText("Server is offline!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+        this->ui->statusLabel->setText("Server is offline!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
         return;
     }
 
@@ -172,22 +170,22 @@ void LoginWindow::Login() {
     document.setObject(object);
     packet = document.toJson(QJsonDocument::Compact);
 
-    m_Socket->write(packet);
-    m_Socket->waitForBytesWritten(1000);
-    m_Socket->waitForReadyRead(3000);
+    this->socket->write(packet);
+    this->socket->waitForBytesWritten(1000);
+    this->socket->waitForReadyRead(3000);
 
-    packet = m_Socket->readAll();
+    packet = this->socket->readAll();
     document = QJsonDocument::fromJson(packet.constData());
     object = document.object();
 
     if(object["connection"] == "0005") {
-        ui->StatusLabel->setText("Sorry, that user does not seem to exist in our database!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+        this->ui->statusLabel->setText("Sorry, that user does not seem to exist in our database!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
     } else if (object["connection"] == "0006") {
-        ui->StatusLabel->setText("Wrong password!");
-        ui->StatusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
+        this->ui->statusLabel->setText("Wrong password!");
+        this->ui->statusLabel->setStyleSheet("QLabel { background-color : white; color : red; }");
     } else if(object["connection"] == "0007") {
-        MainWindow* mainWin = new MainWindow(m_Socket, adminMode, email);
+        MainWindow* mainWin = new MainWindow(this->socket, this->adminMode, email);
         //mainWin->setAttribute(Qt::WA_DeleteOnClose);
         mainWin->show();
         this->close();
