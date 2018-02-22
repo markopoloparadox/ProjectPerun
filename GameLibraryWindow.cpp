@@ -53,7 +53,7 @@ void GameLibraryWindow::fillTable () {
 
     while (true) {
         file.read( (char*)&gameRecord,sizeof(tGames) );
-        if (file.eof()==true) {
+        if (file.eof()) {
             break;
         }
 
@@ -76,7 +76,7 @@ void GameLibraryWindow::fillTable () {
     tPath gamePath;
     while (true) {
         file.read( (char*)&gamePath,sizeof(tPath) );
-        if (file.eof()==true) {
+        if (file.eof()) {
             break;
         }
         int result = binarySearchWrapper(file2,gamePath.processName);
@@ -136,7 +136,7 @@ void GameLibraryWindow::on_buttonBox_clicked(QAbstractButton *button)
           file.open("gamepath.dat",std::ios::in | std::ios::out | std::ios::binary);
           while (true) {
               file.read( (char*)&pathRecord,sizeof(tPath) );
-              if (file.eof()==true) {
+              if (file.eof()) {
                   file.clear();
                   file.seekp(0,std::ios::end);
                   strcpy(pathRecord.processName , selected_process.c_str());

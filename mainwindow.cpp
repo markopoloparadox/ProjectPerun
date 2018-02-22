@@ -108,16 +108,19 @@ QString MainWindow::getFileLocationFromRegistryKey(QString registryKey) {
     QString path = registryKey.mid(0, keynamePosition);
     QString keyname = registryKey.mid(keynamePosition);
 
-    QSettings settings(
-        path,
-        QSettings::NativeFormat
-    );
-    if (keyname.length() == 0) {
-        return settings.value("Default").toString();
+    for (QString firstLevelPath : {"HKEY_LOCAL_MACHINE\\", "HKEY_CURRENT_USER\\"}) {
+        for (QString secondLevelPath : {"Software\\Wow6432Node\\", "Software\\"}) {
+            QSettings settings(
+                firstLevelPath + secondLevelPath + path,
+                QSettings::NativeFormat
+            );
+            QString result = settings.value(keyname.isEmpty() ? "Default" : keyname).toString();
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
     }
-    else {
-        return settings.value(keyname).toString();
-    }
+    return "";
 }
 
 void MainWindow::autoDetectGames() {
@@ -130,7 +133,7 @@ void MainWindow::autoDetectGames() {
     fileMyGames.open("gamepath.dat", std::ios::in | std::ios::binary);
     while (true) {
         fileMyGames.read((char*)&gamePath, sizeof(tPath));
-        if (fileMyGames.eof()==true) {
+        if (fileMyGames.eof()) {
             break;
         }
         assocList.insert(gamePath.processName, gamePath);
@@ -141,7 +144,7 @@ void MainWindow::autoDetectGames() {
     while (true) {
         bool found = false;
         fileAllGames.read((char*)&gameRecord, sizeof(tGames));
-        if (fileAllGames.eof()==true) {
+        if (fileAllGames.eof()) {
             break;
         }
         QString lastKnownLocation = "";
@@ -152,26 +155,29 @@ void MainWindow::autoDetectGames() {
             }
         }
         if (!found) {
-            QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
-            if (gameLocationFromRegistry.isEmpty()) {
-                if (!lastKnownLocation.isEmpty()) {
-                    assocList.remove(gameRecord.processName);
-                }
-            }
-            else {
-                if (!gameLocationFromRegistry.endsWith(".exe")) {
-                    if (!gameLocationFromRegistry.endsWith("\\")) {
-                        gameLocationFromRegistry.append("\\");
+            qDebug() << "a";
+            if (strcmp(gameRecord.registryKeyFullname, "") != 0) {
+                QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
+                if (gameLocationFromRegistry.isEmpty()) {
+                    if (!lastKnownLocation.isEmpty()) {
+                        assocList.remove(gameRecord.processName);
                     }
                 }
                 else {
-                    gameLocationFromRegistry.resize(gameLocationFromRegistry.lastIndexOf('\\') + 1);
-                }
-                if (QFile::exists(gameLocationFromRegistry + gameRecord.processName)) {
-                    strcpy(gamePath.processName, gameRecord.processName);
-                    strcpy(gamePath.path, gameLocationFromRegistry.toStdString().c_str());
-                    strcpy(gamePath.customExecutableParameters, "");
-                    assocList.insert(gameRecord.processName, gamePath);
+                    if (!gameLocationFromRegistry.endsWith(".exe")) {
+                        if (!gameLocationFromRegistry.endsWith("\\")) {
+                            gameLocationFromRegistry.append("\\");
+                        }
+                    }
+                    else {
+                        gameLocationFromRegistry.resize(gameLocationFromRegistry.lastIndexOf('\\') + 1);
+                    }
+                    if (QFile::exists(gameLocationFromRegistry + gameRecord.processName)) {
+                        strcpy(gamePath.processName, gameRecord.processName);
+                        strcpy(gamePath.path, gameLocationFromRegistry.toStdString().c_str());
+                        strcpy(gamePath.customExecutableParameters, "");
+                        assocList.insert(gameRecord.processName, gamePath);
+                    }
                 }
             }
         }
@@ -467,7 +473,7 @@ void MainWindow::refreshGamesList () {    //refreshes Table in "My Games" tab wi
     file2.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (true) {
         file.read( (char*)&recordPath,sizeof(tPath) );
-        if (file.eof()==true) {
+        if (file.eof()) {
             break;
         }
         if (strcmp(recordPath.path,"")==0) {
@@ -501,7 +507,7 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
     file2.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (true) {
         file.read( (char*)&recordPath,sizeof(tPath) );
-        if (file.eof()==true) {
+        if (file.eof()) {
             break;
         }
         if (strcmp(recordPath.path,"")==0) {
@@ -599,7 +605,7 @@ void MainWindow::on_joinFriendButton_clicked()
     tGames gameRecord;
     while (true) {
         file.read( (char*)&gameRecord,sizeof(tGames) );
-        if (file.eof()==true) {
+        if (file.eof()) {
             file.close();
             file.clear();
             this->fileHandlingMutex.unlock();
@@ -989,7 +995,7 @@ void MainWindow::startProgram (const char* progName, const char* ip, const char*
     bool pathNotDefined=true;
     while (true) {
         file.read( (char*)&pathRecord,sizeof(tPath) );
-        if (file.eof()==true) {
+        if (file.eof()) {
             pathNotDefined=false;
             break;
         }
