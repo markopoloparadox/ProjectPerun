@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     QApplication::addLibraryPath(".");
     bool adminMode = isRunningAsAdministrator();
 
-    if (adminMode==true) {
+    if (adminMode) {
         std::fstream file;
         file.open(LOCKFILE,std::ios::out);  //creating lock file - it will be used to determine following states:
                                                 //if file exists - commands for network tracing will be run (during the run-time of application)

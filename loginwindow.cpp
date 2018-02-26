@@ -19,7 +19,7 @@ LoginWindow::LoginWindow(bool adminMode, QWidget *parent) :
     connect(this->ui->passwordLineEdit, SIGNAL(returnPressed()), this, SLOT(login()));
     connect(this->ui->emailLineEdit, SIGNAL(returnPressed()), this, SLOT(login()));
 
-    if (adminMode==false) {
+    if (!adminMode) {
         QMessageBox msgBox;
         msgBox.setText("To use all features that application contains, please run this application with administative privileges.");
         msgBox.exec();

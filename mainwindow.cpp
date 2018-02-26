@@ -155,7 +155,6 @@ void MainWindow::autoDetectGames() {
             }
         }
         if (!found) {
-            qDebug() << "a";
             if (strcmp(gameRecord.registryKeyFullname, "") != 0) {
                 QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
                 if (gameLocationFromRegistry.isEmpty()) {
@@ -219,7 +218,7 @@ MainWindow::MainWindow(QTcpSocket *socket, bool adminMode, QString username, QWi
                 Qt::QueuedConnection
     );
 
-    connect(socket, SIGNAL(readyRead()), this, SLOT(on_tcpMessage_received()));
+    connect(socket, SIGNAL(readyRead()), this, SLOT(onTcpMessageReceived()));
     this->requestFriendsList();
 
     std::fstream file;
@@ -345,7 +344,7 @@ void MainWindow::checkGameStatus()
 
         std::fstream file;
         if (runningGame != NULL) {
-            if (this->adminMode == true) {
+            if (this->adminMode) {
                 //gameserverInfo = NULL;
                 file.open("lock.dat",std::ios::app);    //file is now locked - that means that network tracing will now start because game was detected
                 //gameserverInfo = foundGameserverAddress(runningGame); //this line is commented because some time has to go after lock file is locked (because background service is checking it every 10 seconds, so in many cases it won't be detected instantly and program would try to find IP address of gameserver in file that does not even exist (or in file with data from previous time when network traffic was tracked))
@@ -356,7 +355,7 @@ void MainWindow::checkGameStatus()
         while (runningGame!=NULL && strcmp(getNameOfGameRunningInBackground(runningGame),runningGame)==0) {
             qDebug() << "igra radi";
             char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
-            if (this->adminMode == true) {
+            if (this->adminMode) {
                 tmp = foundGameserverAddress(runningGame);
             }
 
@@ -390,7 +389,7 @@ void MainWindow::checkGameStatus()
         }
         if (runningGame!=NULL) {       //the game is obviously not active anymore (otherwise program would be still in upper loop)
             delete [] runningGame;
-            if (this->adminMode == true) {      //if user has not run application as administrator, then no network traffic is captured and file wasn't locked, so there is no need to unlock it
+            if (this->adminMode) {      //if user has not run application as administrator, then no network traffic is captured and file wasn't locked, so there is no need to unlock it
                 if (gameserverInfo!=NULL) {        //if we were on some gameserver at the moment when we left that game
                     delete [] gameserverInfo;
                 }
@@ -675,38 +674,52 @@ void MainWindow::on_tableWidget_cellDoubleClicked(int row, int column)
     this->on_instantChatButton_clicked();
 }
 
-void MainWindow::on_tcpMessage_received() {
+void MainWindow::onTcpMessageReceived() {
     QJsonObject object;
     QJsonDocument document;
     QByteArray packet;
 
-    packet = this->socket->readAll();
-
-    std::vector<int> ranges;
-    int packetSize = packet.size();
-    byte numOfConsecutiveEscapeChars = 0;
+    disconnect(socket, SIGNAL(readyRead()), this, SLOT(onTcpMessageReceived()));
     int curlyBracketsState = 0;
+    std::vector<int> ranges;
     int rangeSize = 0;
-    for (int i=0; i<packetSize; i++) {
-        char currChar = packet.at(i);
-        if (currChar == '\\') {
-            numOfConsecutiveEscapeChars++;
+    bool first = true;
+    long long packetSize = 0;
+    do {
+        QByteArray fragment;
+        if (!first) {
+            this->socket->waitForReadyRead();
         }
-        else {
-            if (numOfConsecutiveEscapeChars % 2 == 0) {
-                if (currChar == '{') {
-                    curlyBracketsState++;
-                }
-                else if (currChar == '}') {
-                    if (--curlyBracketsState == 0) {
-                        ranges.push_back(i+1);
-                        rangeSize++;
+        fragment = this->socket->readAll();
+        packet += fragment;
+
+        int fragmentSize = fragment.size();
+        byte numOfConsecutiveEscapeChars = 0;
+        char currChar;
+        for (int i=0; i<fragmentSize; i++) {
+            currChar = fragment.at(i);
+            if (currChar == '\\') {
+                numOfConsecutiveEscapeChars++;
+            }
+            else {
+                if (numOfConsecutiveEscapeChars % 2 == 0) {
+                    if (currChar == '{') {
+                        curlyBracketsState++;
+                    }
+                    else if (currChar == '}') {
+                        if (--curlyBracketsState == 0) {
+                            ranges.push_back(packetSize + i + 1);
+                            rangeSize++;
+                        }
                     }
                 }
+                numOfConsecutiveEscapeChars = 0;
             }
-            numOfConsecutiveEscapeChars = 0;
         }
-    }
+        first = false;
+        packetSize += fragmentSize;
+    } while (curlyBracketsState != 0);
+    connect(socket, SIGNAL(readyRead()), this, SLOT(onTcpMessageReceived()));
     int lowerLimit = 0;
     for (int i=0; i<rangeSize; i++) {
         int upperLimit = ranges.at(i);
@@ -1006,7 +1019,7 @@ void MainWindow::startProgram (const char* progName, const char* ip, const char*
 
     file.close();
     this->fileHandlingMutex.unlock();
-    if (pathNotDefined==false || strcmp(pathRecord.path,"")==0) {   //record about some game can be stored locally if user removes game from his list of games (if he set game path to nullString)
+    if (!pathNotDefined || strcmp(pathRecord.path,"")==0) {   //record about some game can be stored locally if user removes game from his list of games (if he set game path to nullString)
         QMessageBox msgBox;
         msgBox.setText("Define game's path in settings in order to join game over your friend");
         msgBox.exec();

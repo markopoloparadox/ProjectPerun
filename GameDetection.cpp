@@ -246,7 +246,7 @@ char* getNameOfGameRunningInBackground(char* processName) {
     //close reader and flush file
     xmlReader->clear();
     xmlFile->close();
-    if (validDestAddr==true) {  //if validDestAddr contains state true, then public address of gameserver was succesfully found
+    if (validDestAddr) {  //if validDestAddr contains state true, then public address of gameserver was succesfully found
         destIP += ":" + destPort;
         char* retval = new char [destIP.length()];
         strcpy(retval,destIP.c_str());
@@ -295,7 +295,7 @@ char* foundGameserverAddress(char* gameprocessName) {  //XML file with network t
         file.seekg(i);      //we put file pointer for reading on i-th position
         char c;
         file.get(c);     //we read content from that position
-        if (endSoon==true) {    //if we are in block of elements which represents end of our searching quest
+        if (endSoon) {    //if we are in block of elements which represents end of our searching quest
             if (c=='\t') {      //and if character (which has been currently read) is tab space
                 numOfTabs++;    //then increment counter which is counting tab spaces which are next to each other
             }

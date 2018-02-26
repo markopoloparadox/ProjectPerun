@@ -66,7 +66,7 @@ private slots:
 
     void on_tableWidget_cellDoubleClicked(int row, int column);
 
-    void on_tcpMessage_received();
+    void onTcpMessageReceived();
 
 private:
     QTcpSocket* socket;
