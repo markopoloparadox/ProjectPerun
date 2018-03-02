@@ -2,22 +2,36 @@
 var ip = require("ip");
 var net = require("net");
 var fs = require("fs");
-var passwordHash = require('password-hash');
+var passwordHash = require("password-hash");
 
 var clients = [];
 var chats = [];
 
 function notifyChatRoomsAboutUserLogout(email) {
+    notifyChatRoomsAboutUserChange(email, "logout");
+}
+
+function notifyChatRoomsAboutUserChange(email, changeType) {
+    var post = new Object();
+    if (changeType === "logout") {
+        post.msg = email + " has left... (went offline)";
+        post.connection = "0022";
+        var isLogout = true;
+    }
+    else {
+        post.msg = changeType;
+        post.connection = "0023";
+        var isLogout = false;
+    }
     chats.forEach(function(chatParticipants, index) {
         var userPositionInChat = chatParticipants.indexOf(email);
         if (userPositionInChat !== -1) {
-            chatParticipants.splice(userPositionInChat, 1);
+            if (isLogout) {
+                chatParticipants.splice(userPositionInChat, 1);
+            }
             
-            var post = new Object();
-            post.connection = "0022";
             post.chatid = index.toString();
             post.userlist = chatParticipants;
-            post.msg = email + " has left... (went offline)";
         
             sendDataToMultipleUsers(chatParticipants, post);
         }
@@ -39,21 +53,37 @@ function personQuitsChat(data, socket) {
 
 function addPersonsToChat(data, socket) {
     var chatGroupToModify = chats[data.chatid];
-
+    data.msg = "";
     data.userlist.forEach(function(username) {
         var user = getClientByEmail(username);
         if (user) {
             chatGroupToModify.push(username);
+            data.msg += username;
+            var customStatus = getCurrUserStatus(username);
+            var gameStatus = getCurrUserGameStatus(username);
+            if (customStatus !== "Online" && customStatus !== "") {
+                data.msg += " (with status \"" + customStatus + "\"";
+                if (gameStatus !== "") {
+                    data.msg += " and currently playing \"" + extractGameNameOnly(gameStatus) + "\")";
+                }
+                else {
+                    data.msg += ")";
+                }
+            }
+            else {
+                if (gameStatus !== "") {
+                    data.msg += " (currently playing \"" + extractGameNameOnly(gameStatus) + "\")";
+                }
+            }
+            data.msg += " has been added to chat by " + socket.name + "\n";
         }
     });
-    
-    data.msg = socket.name + " has added " + data.userlist.join(', ') + " to chat...";
     
     var post = new Object();
     post.connection = "0022";
     post.chatid = data.chatid;
     post.userlist = chatGroupToModify;
-    post.msg = data.msg;
+    post.msg = data.msg.trimRight();
 
     sendDataToMultipleUsers(chatGroupToModify, post);
 }
@@ -190,7 +220,7 @@ function addLeadingZeros(num, size) {
 }
 
 function checkForGamesListUpdate(userFileSize, userFileDateTicks, socket) {
-    var filename = 'gameslist.dat';
+    var filename = "gameslist.dat";
 	var userFileDate = new Date(userFileDateTicks);new Date()
     var stat1 = fs.statSync(filename);
     var post = new Object();
@@ -211,23 +241,28 @@ function checkForGamesListUpdate(userFileSize, userFileDateTicks, socket) {
 function changeGameActivity(email, currentGameStatus) {		//counting user's time spent on some game
     var client = getClientByEmail(email);
     if (client) {
+        var gameName;
         if (currentGameStatus === "") {		//if user stopped playing current game (so currently (s)he isn't playing anything)
             var now = new Date();	//current time (time when user ends playing game which (s)he played till now)
             var difference = now.getTime() - client.ingame_start_time.getTime();	//in milliseconds
             var secondsElapsed = parseInt (difference/1000);	//there is no need to store milliseconds (and after stringifying numbers in double format take more size than integers)
-            console.log( email + " spent " + secondsElapsed + " seconds playing " + extractGameNameOnly(getCurrUserGameStatus(email)) );
+            gameName = extractGameNameOnly(getCurrUserGameStatus(email));
+            console.log( email + " spent " + secondsElapsed + " seconds playing " + gameName );
             
-            updateGameStatistics(email, extractGameNameOnly(getCurrUserGameStatus(email)), secondsElapsed);
+            notifyChatRoomsAboutUserChange(email, email + " has stopped playing " + gameName);
+            updateGameStatistics(email, gameName, secondsElapsed);
         }
         else {		//if user now started playing game
             client.ingame_start_time = new Date();
-            console.log(email + " started playing " + extractGameNameOnly(currentGameStatus) + " on " + client.ingame_start_time);
+            gameName = extractGameNameOnly(currentGameStatus);
+            console.log(email + " started playing " + gameName + " on " + client.ingame_start_time);
+            notifyChatRoomsAboutUserChange(email, email + " is now playing " + gameName);
         }
     }
 }
 
 function extractGameNameOnly(gameNameWithIpAndPort) {
-    return gameNameWithIpAndPort.replace(/ \(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])\)$/, '');
+    return gameNameWithIpAndPort.replace(/ \(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])\)$/, "");
 }
 
 function notifyFriendsAboutChange(email) {
@@ -258,8 +293,12 @@ function sendDataToMultipleUsers(recipients, data) {    // recipients should be 
 function handleStatusChange(email, customStatus, currentGameStatus) {
     var client = getClientByEmail(email);
     if (client) {
-        if (extractGameNameOnly(client.current_game) !== extractGameNameOnly(currentGameStatus))	//if user stopped playing game which (s)he played before
-    		changeGameActivity(email, currentGameStatus);
+        if (extractGameNameOnly(client.current_game) !== extractGameNameOnly(currentGameStatus)) {	//if user stopped playing game which (s)he played before
+            changeGameActivity(email, currentGameStatus);
+        }
+        else if (client.custom_status !== customStatus) {
+            notifyChatRoomsAboutUserChange(email, email + " has changed status to \"" + customStatus + "\"");
+        }
         client.custom_status = customStatus;
         client.current_game = currentGameStatus;
         notifyFriendsAboutChange(email);
@@ -512,7 +551,7 @@ var server = net.createServer(function(socket) {
     socket.name = socket.remoteAddress + ":" + socket.remotePort;
 
     //dodavanje klijenta u listu
-    socket.on('data', function(allData) {
+    socket.on("data", function(allData) {
         allData = allData.toString();
         var ranges = [];
         var packetSize = allData.length;
@@ -521,15 +560,15 @@ var server = net.createServer(function(socket) {
         var rangeSize = 0;
         for (var i=0; i<packetSize; i++) {
             var currChar = allData[i];
-            if (currChar === '\\') {
+            if (currChar === "\\") {
                 numOfConsecutiveEscapeChars++;
             }
             else {
                 if (numOfConsecutiveEscapeChars % 2 === 0) {
-                    if (currChar === '{') {
+                    if (currChar === "{") {
                         curlyBracketsState++;
                     }
-                    else if (currChar === '}') {
+                    else if (currChar === "}") {
                         if (--curlyBracketsState === 0) {
                             ranges.push(i+1);
                             rangeSize++;
@@ -588,7 +627,7 @@ var server = net.createServer(function(socket) {
     });
 
 
-    socket.on('close', function() {
+    socket.on("close", function() {
         var email = socket.name;
         console.log(email + " left.");
         for(var i = 0; i < clients.length; i++) {
@@ -603,7 +642,7 @@ var server = net.createServer(function(socket) {
         notifyChatRoomsAboutUserLogout(email);
     });
 
-    socket.on('error', function(err) {
+    socket.on("error", function(err) {
         console.log("Error");
     });
 
