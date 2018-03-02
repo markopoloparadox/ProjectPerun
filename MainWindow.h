@@ -58,6 +58,8 @@ private slots:
 
     void on_actionMyStats_triggered();
 
+    void on_actionMyScreenshots_triggered();
+
     void on_instantChatButton_clicked();
 
     void on_actionDisconnect_triggered();
@@ -89,9 +91,9 @@ private:
     void autoDetectGames();
     void startProgram (const char* progName, const char* ip=NULL, const char* port=NULL);
     void processFriendRequest(QString username);
+    static void handleHotkeys (void *arg);
+    static HBITMAP getScreenBmp(HDC hdc);
+    static void listenGameActivity (void *arg);
 };
-
-void listenGameActivity (void *arg);
-void handleHotkeys (void *arg);
 
 #endif // MAINWINDOW_H

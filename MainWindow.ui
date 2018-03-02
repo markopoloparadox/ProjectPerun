@@ -231,6 +231,7 @@
      <string>Main</string>
     </property>
     <addaction name="actionMyStats"/>
+    <addaction name="actionMyScreenshots"/>
     <addaction name="actionDisconnect"/>
     <addaction name="actionExit"/>
    </widget>
@@ -268,12 +269,17 @@
   </action>
   <action name="actionMyStats">
    <property name="text">
-    <string>My Stats</string>
+    <string>My stats</string>
    </property>
   </action>
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionMyScreenshots">
+   <property name="text">
+    <string>My screenshots</string>
    </property>
   </action>
  </widget>

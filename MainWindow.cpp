@@ -8,6 +8,7 @@
 #include <QDateTime>
 #include <sstream>
 #include <QMessageBox>
+#include <QProcess>
 
 #if defined (__linux__)
 #include <sys/stat.h>
@@ -20,7 +21,7 @@
 #include <QSettings>
 
 
-HBITMAP getScreenBmp(HDC hdc) {
+HBITMAP MainWindow::getScreenBmp(HDC hdc) {
     // Get screen dimensions
     int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
     int nScreenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -36,9 +37,10 @@ HBITMAP getScreenBmp(HDC hdc) {
     return hBitmap;
 }
 
-void handleHotkeys(void *arg) {
+void MainWindow::handleHotkeys(void *arg) {
     MainWindow *mw = (MainWindow*)arg;
     Ui::MainWindow *ui = mw->ui;
+#if defined (_WIN32)
     if (RegisterHotKey(NULL, 1, MOD_ALT | 0x4000, 0x42)) {
         qDebug() << "Hotkey is successfully registered, using MOD_NOREPEAT flag";
     }
@@ -78,8 +80,9 @@ void handleHotkeys(void *arg) {
 
             if (lpPixels) {
                 QString currentDate = QDateTime::currentDateTime().toString("dd-MM-yyyy_hh-mm-ss");
-                QString imageName = processNameOfCurrentGame + "-" + currentDate + ".bmp";
-                qDebug() << "Screenshot will be stored with following name: " << imageName;
+                createDirectoryIfDoesntExist("screenshots");
+                QString imageName = "screenshots/" + processNameOfCurrentGame + "-" + currentDate + ".bmp";
+                qDebug() << "Screenshot will be stored with the following name: " << imageName;
                 std::fstream file;
                 file.open(imageName.toStdString().c_str(), std::ios::out | std::ios::binary);
                 BITMAPFILEHEADER hdr;
@@ -101,6 +104,7 @@ void handleHotkeys(void *arg) {
             delete[] lpPixels;
         }
     }
+#endif
 }
 
 QString MainWindow::getFileLocationFromRegistryKey(QString registryKey) {
@@ -241,9 +245,9 @@ MainWindow::MainWindow(QTcpSocket *socket, bool adminMode, QString username, QWi
     this->ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     this->ui->currentlyPlayingTBox->setFocus();
 
-    this->gameActivityListenerThread = new std::thread(listenGameActivity, this);
+    this->gameActivityListenerThread = new std::thread(MainWindow::listenGameActivity, this);
 
-    this->globalShortcutListenerThread = new std::thread(handleHotkeys, this);
+    this->globalShortcutListenerThread = new std::thread(MainWindow::handleHotkeys, this);
 }
 
 MainWindow::~MainWindow(){      //destructor isn't called when form is closed because this form isn't called with Qt::WA_DeleteOnClose attribute
@@ -325,7 +329,7 @@ void MainWindow::on_actionConfigureGameLibrary_triggered()
     this->gameLibWin->show();
 }
 
-void listenGameActivity (void *arg) {    //my compiler does not not allow that threaded function is class member (i.e. method), so this is workaround - people say that that it compiler's bug
+void MainWindow::listenGameActivity (void *arg) {    //my compiler does not not allow that threaded function is class member (i.e. method), so this is workaround - people say that that it compiler's bug
     MainWindow *mainClass = static_cast<MainWindow*>(arg);
     mainClass->checkGameStatus();
 }
@@ -626,6 +630,19 @@ void MainWindow::on_joinFriendButton_clicked()
 void MainWindow::on_actionMyStats_triggered()
 {
     this->requestGameActivityInfo(this->username);
+}
+
+void MainWindow::on_actionMyScreenshots_triggered()
+{
+    createDirectoryIfDoesntExist("screenshots");
+    QString screenshotFolderPath = QDir::toNativeSeparators(QDir::currentPath()) + QDir::separator() + "screenshots";
+    QProcess process;
+#if defined (_WIN32)
+    QString processName = "explorer.exe";
+#elif defined (__linux__)
+    QString processName = "xdg-open";
+#endif
+    process.startDetached(processName, { screenshotFolderPath });
 }
 
 void MainWindow::on_instantChatButton_clicked()
@@ -1030,11 +1047,6 @@ void MainWindow::startProgram (const char* progName, const char* ip, const char*
 #if defined (_WIN32)
     command << "cd /d \"" << pathRecord.path << "\" && " << "start ";
 #endif
-#if defined (__linux__)
-    std::string path = pathRecord.path;
-    path.replace(path.find("/home"),5,"~");             //replaces "/home" part of directory path with "~" because that's the only way how programs can be run when using absolute path
-    command << path.c_str() << "/" << progName;
-#endif
 
     if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"\0")!=0) {   //if in this function are passed ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
         launchArguments = launchArguments.replace("%%exe%%", progName);
@@ -1047,5 +1059,10 @@ void MainWindow::startProgram (const char* progName, const char* ip, const char*
     }
     command << " " << pathRecord.customExecutableParameters;
 
-    system(command.str().c_str());  //executing
+    QProcess process;
+#if defined (__linux__)
+    process.startDetached(QString::fromStdString(command.str());  //executing
+#elif defined (_WIN32)
+    process.startDetached("cmd /c \"" + QString(command.str().c_str()) + "\"");
+#endif
 }

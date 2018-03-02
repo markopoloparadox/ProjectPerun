@@ -31,5 +31,7 @@ char* stringToLowerCase(char* string);
 
 QString extractGameNameOnly (QString gameStatus);
 
+void createDirectoryIfDoesntExist(QString directoryName);
+
 #endif // FUNKCIJE
 

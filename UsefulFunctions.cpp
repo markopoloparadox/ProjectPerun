@@ -1,4 +1,5 @@
 #include "UsefulFunctions.h"
+#include <QDir>
 
 int binarySearch (std::fstream &file,const char* value,int first,int last, short recordSize) {  //should be called only indirectly by calling binarySearchWrapper function
     if (first>last) {
@@ -61,4 +62,11 @@ QString extractGameNameOnly (QString gameStatus) {
     QString portPattern = "([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])";
     QRegularExpression ipAndPortInsideBracketsPattern(((QString)" \\(%1:%2\\)$").arg(ipPattern, portPattern));
     return gameStatus.remove(ipAndPortInsideBracketsPattern);
+}
+
+void createDirectoryIfDoesntExist(QString directoryName) {
+    QDir dir(directoryName);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
 }
