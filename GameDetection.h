@@ -27,7 +27,7 @@ void sleep(int seconds);
 #endif
 
 
-char* getNameOfGameRunningInBackground(char* processName=NULL);
+char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames, char* processName=NULL);
 
 char* foundGameserverAddress (char* gameprocessName);
 

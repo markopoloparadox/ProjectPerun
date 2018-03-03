@@ -1,20 +1,16 @@
 #include "GameDetection.h"
 #include <QDebug>
+#include <QProcess>
 
 #if defined (_WIN32)
-char* getNameOfGameRunningInBackground(char* processName) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
+char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames, char* processName) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
     bool gameSpecified = true;
     if (processName==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
         gameSpecified = false;         //so we are setting that game is specified - we need to find it out in this function call
     }
     bool found = false;
 
-    std::fstream file;
-    if (!gameSpecified) {
-        file.open("gameslist.dat",std::ios::in | std::ios::binary);
-    }
-
-    HANDLE hSnapshot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
     if(hSnapshot != INVALID_HANDLE_VALUE) {
         PROCESSENTRY32 pe32 = {0};
         pe32.dwSize = sizeof(pe32);
@@ -29,7 +25,7 @@ char* getNameOfGameRunningInBackground(char* processName) {  //background...does
                     }
                 }*/
                 if (!gameSpecified) {
-                    if( binarySearchWrapper(file,tmp)!=-1 ) {  //Check if currently observed process is game which is supported
+                    if( detectedGames.contains(tmp) ) {  //Check if currently observed process is game which is supported
                         //Looks like some game is running!
                         found = true;
                         processName = new char [50];
@@ -45,16 +41,13 @@ char* getNameOfGameRunningInBackground(char* processName) {  //background...does
                     }
                 }
 
-                if(!::Process32Next(hSnapshot, &pe32)) {   //iterating through list of processes
+                if(!Process32Next(hSnapshot, &pe32)) {   //iterating through list of processes
                     break;
                 }
             }
         }
 
-        ::CloseHandle(hSnapshot);
-    }
-    if (!gameSpecified) {
-        file.close();
+        CloseHandle(hSnapshot);
     }
 
     if (found) {
@@ -76,32 +69,21 @@ void sleep(int seconds) {
 #endif
 
 #if defined (__linux__)
-char* getNameOfGameRunningInBackground(char* processName) {
-    if (processName==NULL) {       //if we haven't specified name of game for which we are checking its existence (i.e. if we want to find if there is any active game currently running)
-        fstream file;
-        tGames gameRecord;
-        file.open("gameslist.dat",std::ios::in | std::ios::binary);
-        while (true) {
-            std::stringstream command;
-            file.read( (char*)&gameRecord,sizeof(tGames) );
-            if (file.eof()) {
-                file.clear();
-                file.close();
-                return NULL;        //none game was found
-            }
-            command << "ps --no-headers -p $(pidof " << gameRecord.processName << ")";
-            if (system(command.str().c_str())==0) {     //if command has successfully run - i.e. if processName from file exists
-                processName = new char [50];
-                strcpy(processName, gameRecord.processName);
-                return processName;    //return process name of currently active game
+char* getNameOfGameRunningInBackground(QMap<QString, tPath>& detectedGames, char* previousProcessName) {
+    if (previousProcessName==NULL) {       //if we haven't specified name of game for which we are checking its existence (i.e. if we want to find if there is any active game currently running)
+        QProcess process;
+        process.start("ps -aux --no-headers | awk '{print $11}' | grep -E -o '[^/]+?$'");
+        process.waitForFinished(-1);
+        QString output(process.readAllStandardOutput());
+        for (QString processName : output.split(QRegularExpression{R"-((\r\n?|\n))-"})) {
+            if (detectedGames.contains(processName)) {
+                return processName.str().c_str();
             }
         }
-        file.close();
+        return NULL;        //none game was found
     }
     else {
-        std::stringstream command;
-        command << "ps --no-headers -p $(pidof " << processName <<")";
-        return !system(command.str().c_str()) ? processName : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'process_name' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
+        return !system(QString("ps --no-headers -p $(pidof " + previousProcessName + ")").str().c_str()) ? previousProcessName : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'processName' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
     }
 }
 #endif

@@ -4,7 +4,6 @@
 #include "QString"
 #include "QMessageBox"
 #include <string>
-#include "UsefulFunctions.h"
 #include "MainWindow.h"
 
 #if defined (__linux__)
@@ -15,10 +14,11 @@ QString homePath = "/home";
 QString homePath = "C:/";
 #endif
 
-GameLibraryWindow::GameLibraryWindow(QWidget *parent) :
+GameLibraryWindow::GameLibraryWindow(QMap<QString, tPath>& detectedGames, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::GameLibraryWindow),
-    numOfRows(0)
+    numOfRows(0),
+    detectedGames(detectedGames)
 {
     this->ui->setupUi(this);
     this->setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -61,32 +61,19 @@ void GameLibraryWindow::fillTable () {
 
         this->ui->tableWidget->setItem(this->numOfRows,0,new QTableWidgetItem(gameRecord.fullName));
         this->ui->tableWidget->setItem(this->numOfRows,1,new QTableWidgetItem(gameRecord.processName));
-        this->ui->tableWidget->setItem(this->numOfRows,2,new QTableWidgetItem(""));   //this must to be here even if no path for some game is defined - reason is that that cell must contain object where values in future could be stored (new QTableWidgetItem)
+        if (detectedGames.contains(gameRecord.processName)) {
+            this->ui->tableWidget->setItem(this->numOfRows,2,new QTableWidgetItem(detectedGames[gameRecord.processName].path));
+        }
+        else {
+            this->ui->tableWidget->setItem(this->numOfRows,2,new QTableWidgetItem(""));
+        }
         this->ui->tableWidget->setEditTriggers(0);    //this disables editing cells in table
-        this->ui->tableWidget->horizontalHeader()->setSectionResizeMode(0,QHeaderView::Stretch);
-        this->ui->tableWidget->horizontalHeader()->setSectionResizeMode(1,QHeaderView::Stretch);
-        this->ui->tableWidget->horizontalHeader()->setSectionResizeMode(2,QHeaderView::Stretch);
+        this->ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+        this->ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
         this->numOfRows++;
     }
-    file.close();
     file.clear();
-    std::fstream file2;
-    file.open("gamepath.dat",std::ios::in | std::ios::binary);
-    file2.open("gameslist.dat",std::ios::in | std::ios::binary);
-    tPath gamePath;
-    while (true) {
-        file.read( (char*)&gamePath,sizeof(tPath) );
-        if (file.eof()) {
-            break;
-        }
-        int result = binarySearchWrapper(file2,gamePath.processName);
-        if (result != -1) {   //u svakom slučaju rezultat mora biti različit od -1 (jedino ako je datoteka gamepath.dat modificirana nekako drugacije od korisnikovog unosa iz ove aplikacije)
-            this->ui->tableWidget->setItem(result,2,new QTableWidgetItem(gamePath.path));
-        }
-    }
     file.close();
-    file.clear();
-    file2.close();
     ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
     this->ui->tableWidget->setSortingEnabled(true);  //sorting is disabled before initial insertion (due to performanse which can be gained with binary search used for inserting game paths) - reason is that columns in this table will be represented sorted by Full game name and records in file are stored by Process name
     this->ui->tableWidget->sortByColumn(0,Qt::SortOrder::AscendingOrder);
@@ -129,28 +116,23 @@ void GameLibraryWindow::on_buttonBox_clicked(QAbstractButton *button)
               msgBox.exec();
               return;
           }
-          std::string selected_process = this->ui->tableWidget->item(activeRow,1)->text().toStdString();
-          tPath pathRecord;
+          QString selectedProcess = this->ui->tableWidget->item(activeRow,1)->text();
+          if (this->ui->destPathTextBox->text().trimmed().isEmpty()) {
+              detectedGames.remove(selectedProcess);
+          }
+          else {
+              tPath pathRecord;
+              strcpy(pathRecord.processName, selectedProcess.toStdString().c_str());
+              strcpy(pathRecord.path , this->ui->destPathTextBox->text().toStdString().c_str());
+              strcpy(pathRecord.customExecutableParameters , this->ui->custExecParam->text().toStdString().c_str());
+              detectedGames[selectedProcess] = pathRecord;
+          }
           std::fstream file;
           ((MainWindow*)this->parent())->fileHandlingMutex.lock();
-          file.open("gamepath.dat",std::ios::in | std::ios::out | std::ios::binary);
-          while (true) {
-              file.read( (char*)&pathRecord,sizeof(tPath) );
-              if (file.eof()) {
-                  file.clear();
-                  file.seekp(0,std::ios::end);
-                  strcpy(pathRecord.processName , selected_process.c_str());
-                  break;
-              }
-              if (strcmp(selected_process.c_str(),pathRecord.processName)==0) {
-                  int fileSize = file.tellg();
-                  file.seekp(fileSize-sizeof(tPath),std::ios::beg);
-                  break;
-              }
+          file.open("gamepath.dat", std::ios::out | std::ios::binary);
+          for (tPath pathRecord : detectedGames) {
+              file.write( (char*)&pathRecord,sizeof(tPath) );
           }
-          strcpy(pathRecord.path , this->ui->destPathTextBox->text().toStdString().c_str());
-          strcpy(pathRecord.customExecutableParameters , this->ui->custExecParam->text().toStdString().c_str());
-          file.write( (char*)&pathRecord,sizeof(tPath) );
           file.close();
           ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
           this->ui->tableWidget->item(activeRow,2)->setText( this->ui->destPathTextBox->text() );
@@ -167,28 +149,17 @@ void GameLibraryWindow::on_tableWidget_currentCellChanged(int currentRow, int cu
         return;
     }
 //    ui->tableWidget->selectRow(currentRow); //no need for this anymore because in class constructor is now defined that there is no individual cell selection, but whole row selection
-    std::fstream file;
     tPath pathRecord;
-    ((MainWindow*)this->parent())->fileHandlingMutex.lock();
-    file.open("gamepath.dat",std::ios::in | std::ios::binary);
-    while (true) {
-        file.read( (char*)&pathRecord,sizeof(tPath) );
-        if (file.eof()) {
-            this->ui->destPathTextBox->clear();
-            this->ui->custExecParam->clear();
-            file.close();
-            file.clear();
-            ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
-            return;
-        }
-        if (strcmp(this->ui->tableWidget->item(currentRow,1)->text().toUtf8(),pathRecord.processName)==0) {
-            this->ui->destPathTextBox->setText(QString::fromUtf8(pathRecord.path));
-            this->ui->custExecParam->setText(QString::fromUtf8(pathRecord.customExecutableParameters));
-            break;
-        }
+    QString selectedProcess = this->ui->tableWidget->item(currentRow,1)->text();
+    if (detectedGames.contains(selectedProcess)) {
+        tPath pathRecord = detectedGames[selectedProcess];
+        this->ui->destPathTextBox->setText(QString::fromUtf8(pathRecord.path));
+        this->ui->custExecParam->setText(QString::fromUtf8(pathRecord.customExecutableParameters));
     }
-    file.close();
-    ((MainWindow*)this->parent())->fileHandlingMutex.unlock();
+    else {
+        this->ui->destPathTextBox->clear();
+        this->ui->custExecParam->clear();
+    }
 }
 
 void GameLibraryWindow::on_checkUpdateButton_clicked()

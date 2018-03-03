@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QAbstractButton>
+#include "UsefulFunctions.h"
 
 namespace Ui {
 class GameLibraryWindow;
@@ -13,7 +14,7 @@ class GameLibraryWindow : public QDialog
     Q_OBJECT
 
 public:
-    explicit GameLibraryWindow(QWidget *parent = 0);
+    explicit GameLibraryWindow(QMap<QString, tPath>& detectedGames, QWidget *parent = 0);
     ~GameLibraryWindow();
     void fillTable();
 
@@ -30,6 +31,7 @@ private slots:
 private:
     Ui::GameLibraryWindow *ui;
     short numOfRows;
+    QMap<QString, tPath>& detectedGames;
 };
 
 #endif // GAMELIBRARY_H

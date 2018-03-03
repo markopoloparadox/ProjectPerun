@@ -79,6 +79,7 @@ private:
     std::thread *globalShortcutListenerThread;
     bool adminMode;
     bool initialGamesListCheckingDone = false;
+    static QMap<QString, tPath> detectedGames;
     void sendNotificationMessage (short tID, const char* customStatus, char* playedGameName, char* gameserverInfo);
     void showGameStats (QJsonObject object);
     void handleNewChatMessage (QJsonObject message);
@@ -89,7 +90,7 @@ private:
     void updateSupportedGamesList(QJsonObject message, int packetSize);
     QString getFileLocationFromRegistryKey(QString registryKey);
     void autoDetectGames();
-    void startProgram (const char* progName, const char* ip=NULL, const char* port=NULL);
+    void startProgram (const char* progName, const tGames& gameRecord, const char* ip=NULL, const char* port=NULL);
     void processFriendRequest(QString username);
     static void handleHotkeys (void *arg);
     static HBITMAP getScreenBmp(HDC hdc);

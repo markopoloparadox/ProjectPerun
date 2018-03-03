@@ -20,6 +20,7 @@
 #include <strsafe.h>
 #include <QSettings>
 
+QMap<QString, tPath> MainWindow::detectedGames;
 
 HBITMAP MainWindow::getScreenBmp(HDC hdc) {
     // Get screen dimensions
@@ -132,7 +133,6 @@ void MainWindow::autoDetectGames() {
     tPath gamePath;
     std::fstream fileAllGames;
     std::fstream fileMyGames;
-    QMap<QString, tPath> assocList;
     this->fileHandlingMutex.lock();
     fileMyGames.open("gamepath.dat", std::ios::in | std::ios::binary);
     while (true) {
@@ -140,7 +140,7 @@ void MainWindow::autoDetectGames() {
         if (fileMyGames.eof()) {
             break;
         }
-        assocList.insert(gamePath.processName, gamePath);
+        detectedGames.insert(gamePath.processName, gamePath);
     }
     fileMyGames.clear();
     fileMyGames.close();
@@ -152,8 +152,8 @@ void MainWindow::autoDetectGames() {
             break;
         }
         QString lastKnownLocation = "";
-        if (assocList.contains(gameRecord.processName)) {
-            lastKnownLocation = assocList.find(gameRecord.processName)->path;
+        if (detectedGames.contains(gameRecord.processName)) {
+            lastKnownLocation = detectedGames.find(gameRecord.processName)->path;
             if (QFile::exists(lastKnownLocation + gameRecord.processName)) {
                 found = true;
             }
@@ -163,7 +163,7 @@ void MainWindow::autoDetectGames() {
                 QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
                 if (gameLocationFromRegistry.isEmpty()) {
                     if (!lastKnownLocation.isEmpty()) {
-                        assocList.remove(gameRecord.processName);
+                        detectedGames.remove(gameRecord.processName);
                     }
                 }
                 else {
@@ -179,15 +179,15 @@ void MainWindow::autoDetectGames() {
                         strcpy(gamePath.processName, gameRecord.processName);
                         strcpy(gamePath.path, gameLocationFromRegistry.toStdString().c_str());
                         strcpy(gamePath.customExecutableParameters, "");
-                        assocList.insert(gameRecord.processName, gamePath);
+                        detectedGames.insert(gameRecord.processName, gamePath);
                     }
                 }
             }
         }
     }
     fileMyGames.open("gamepath.dat", std::ios::out | std::ios::binary);
-    for (QMap<QString, tPath>::iterator i = assocList.begin(); i != assocList.end(); i++) {
-        fileMyGames.write((char*)&i.value(), sizeof(tPath));
+    for (tPath pathRecord : detectedGames) {
+        fileMyGames.write((char*)&pathRecord, sizeof(tPath));
     }
     fileMyGames.close();
     this->fileHandlingMutex.unlock();
@@ -325,7 +325,7 @@ void MainWindow::processFriendRequest(QString username) {
 
 void MainWindow::on_actionConfigureGameLibrary_triggered()
 {
-    this->gameLibWin = new GameLibraryWindow(this);
+    this->gameLibWin = new GameLibraryWindow(detectedGames, this);
     this->gameLibWin->show();
 }
 
@@ -342,7 +342,7 @@ void MainWindow::checkGameStatus()
 
         this->fileHandlingMutex.lock();
 
-        runningGame = getNameOfGameRunningInBackground();
+        runningGame = getNameOfGameRunningInBackground(detectedGames);
 
         this->fileHandlingMutex.unlock();
 
@@ -356,7 +356,7 @@ void MainWindow::checkGameStatus()
             sendNotificationMessage(1,NULL,runningGame,gameserverInfo);
         }
         sleep(10);
-        while (runningGame!=NULL && strcmp(getNameOfGameRunningInBackground(runningGame),runningGame)==0) {
+        while (runningGame!=NULL && strcmp(getNameOfGameRunningInBackground(detectedGames, runningGame),runningGame)==0) {
             qDebug() << "igra radi";
             char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
             if (this->adminMode) {
@@ -466,72 +466,46 @@ void MainWindow::on_currentStatusCBox_activated(const QString &arg1)
 
 void MainWindow::refreshGamesList () {    //refreshes Table in "My Games" tab with added paths to games (if user adds path for some game, that means that he has that game and it is added on My Games list)
     this->ui->listWidget->clear();    //deletes all previous content of that list before adding new one (otherwise, there would be many duplicates)
-    std::fstream file, file2;
-    tPath recordPath;
+    std::fstream file;
     tGames recordGame;
 
     this->fileHandlingMutex.lock();
 
-    file.open("gamepath.dat",std::ios::in | std::ios::binary);
-    file2.open("gameslist.dat",std::ios::in | std::ios::binary);
+    file.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (true) {
-        file.read( (char*)&recordPath,sizeof(tPath) );
+        file.read( (char*)&recordGame,sizeof(tGames) );
         if (file.eof()) {
             break;
         }
-        if (strcmp(recordPath.path,"")==0) {
-            continue;
+        if (detectedGames.contains(recordGame.processName)) {
+            this->ui->listWidget->addItem(recordGame.fullName);
         }
-        short position = binarySearchWrapper(file2,recordPath.processName);
-        if (position == -1) {
-            continue;
-        }
-        file2.seekp(position*sizeof(tGames));
-        file2.read( (char*)&recordGame,sizeof(tGames) );
-        this->ui->listWidget->addItem(recordGame.fullName);
     }
     file.close();
     file.clear();
-    file2.close();
 
     this->fileHandlingMutex.unlock();
-
 }
 
 void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
 {
-    std::fstream file, file2;
-    tPath recordPath;
+    std::fstream file;
     tGames recordGame;
-
     this->fileHandlingMutex.lock();
 
-    file.open("gamepath.dat",std::ios::in | std::ios::binary);
-    file2.open("gameslist.dat",std::ios::in | std::ios::binary);
+    file.open("gameslist.dat",std::ios::in | std::ios::binary);
     while (true) {
-        file.read( (char*)&recordPath,sizeof(tPath) );
+        file.read( (char*)&recordGame,sizeof(tGames) );
         if (file.eof()) {
             break;
         }
-        if (strcmp(recordPath.path,"")==0) {
-            continue;
-        }
-        short position = binarySearchWrapper(file2,recordPath.processName);
-        if (position==-1) { // some game can appear in gamepath.dat as registered on user's computer, but it's not in the list of supported games if support for that game is eventaully removed or process name is changed
-            continue;
-        }
-        file2.seekp(position*sizeof(tGames));
-        file2.read( (char*)&recordGame,sizeof(tGames) );
         if (strcmp( item->text().toUtf8() , recordGame.fullName )==0) {
-            file.close();
-            file2.close();
             this->fileHandlingMutex.unlock();
-            this->startProgram(recordPath.processName, NULL, NULL);
+            this->startProgram(recordGame.processName, recordGame, NULL, NULL);
             return;
         }
     }
     file.close();
-    file2.close();
 
     this->fileHandlingMutex.unlock();
 
@@ -623,8 +597,15 @@ void MainWindow::on_joinFriendButton_clicked()
     file.close();
     this->fileHandlingMutex.unlock();
 
+    if (!detectedGames.contains(gameRecord.processName)) {   //record about some game can be stored locally if user removes game from his list of games (if he set game path to nullString)
+        QMessageBox msgBox;
+        msgBox.setText("Define game's path in settings in order to join game over your friend");
+        msgBox.exec();
+        return;
+    }
+
     int delimiterPosition = serverIpAndPortInsideBrackets.find_first_of(':');
-    startProgram( gameRecord.processName , serverIpAndPortInsideBrackets.substr(0, delimiterPosition).c_str() , serverIpAndPortInsideBrackets.substr(delimiterPosition+1,serverIpAndPortInsideBrackets.length()-delimiterPosition-2).c_str() );
+    startProgram( gameRecord.processName , gameRecord , serverIpAndPortInsideBrackets.substr(0, delimiterPosition).c_str() , serverIpAndPortInsideBrackets.substr(delimiterPosition+1,serverIpAndPortInsideBrackets.length()-delimiterPosition-2).c_str() );
 }
 
 void MainWindow::on_actionMyStats_triggered()
@@ -1009,40 +990,10 @@ void MainWindow::checkIfNewerGamesListExist() {
     qDebug() << "Request for update info about gameslist.dat has been successfully sent!";
 }
 
-void MainWindow::startProgram (const char* progName, const char* ip, const char* port) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
+void MainWindow::startProgram (const char* progName, const tGames& gameRecord, const char* ip, const char* port) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
     std::stringstream command;
-    std::fstream file;
-    tGames gameRecord;
+    tPath pathRecord = detectedGames[progName];
 
-    this->fileHandlingMutex.lock();
-    file.open("gameslist.dat",std::ios::in | std::ios::binary);
-    file.seekg( binarySearchWrapper(file,progName)*sizeof(tGames) , std::ios::beg );
-    file.read( (char*)&gameRecord,sizeof(tGames) );
-    file.close();
-
-    file.open("gamepath.dat",std::ios::in | std::ios::binary);
-    tPath pathRecord;
-    bool pathNotDefined=true;
-    while (true) {
-        file.read( (char*)&pathRecord,sizeof(tPath) );
-        if (file.eof()) {
-            pathNotDefined=false;
-            break;
-        }
-        if (strcmp(pathRecord.processName,progName)==0) {
-            break;
-        }
-    }
-
-    file.close();
-    this->fileHandlingMutex.unlock();
-    if (!pathNotDefined || strcmp(pathRecord.path,"")==0) {   //record about some game can be stored locally if user removes game from his list of games (if he set game path to nullString)
-        QMessageBox msgBox;
-        msgBox.setText("Define game's path in settings in order to join game over your friend");
-        msgBox.exec();
-        file.clear();
-        return;
-    }
     QString launchArguments = gameRecord.multiplayerCommandLineArguments;
 #if defined (_WIN32)
     command << "cd /d \"" << pathRecord.path << "\" && " << "start ";
