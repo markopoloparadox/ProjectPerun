@@ -109,19 +109,35 @@ void MainWindow::handleHotkeys(void *arg) {
 }
 
 QString MainWindow::getFileLocationFromRegistryKey(QString registryKey) {
-    int keynamePosition = registryKey.lastIndexOf('\\') + 1;
-    QString path = registryKey.mid(0, keynamePosition);
-    QString keyname = registryKey.mid(keynamePosition);
+    QStringList pathComponents = registryKey.split("\\", QString::KeepEmptyParts);
+    QString keyname = pathComponents.takeLast();
 
     for (QString firstLevelPath : {"HKEY_LOCAL_MACHINE\\", "HKEY_CURRENT_USER\\"}) {
-        for (QString secondLevelPath : {"Software\\Wow6432Node\\", "Software\\"}) {
-            QSettings settings(
-                firstLevelPath + secondLevelPath + path,
+        for (QString secondLevelPath : {"Software\\Wow6432Node", "Software"}) {
+            QString currentPath = firstLevelPath + secondLevelPath;
+            QSettings* settings = new QSettings(
+                currentPath,
                 QSettings::NativeFormat
             );
-            QString result = settings.value(keyname.isEmpty() ? "Default" : keyname).toString();
-            if (!result.isEmpty()) {
-                return result;
+
+            for (QString pathComp : pathComponents) {
+                if (settings->childGroups().contains(pathComp, Qt::CaseInsensitive)) {
+                    delete settings;
+                    settings = new QSettings(
+                        currentPath += "\\" + pathComp,
+                        QSettings::NativeFormat
+                    );
+                }
+                else {
+                    delete settings;
+                    settings = NULL;
+                    break;
+                }
+            }
+            if (settings != NULL) {
+                QString value = settings->value(keyname.isEmpty() ? "Default" : keyname).toString();
+                delete settings;
+                return value;
             }
         }
     }
@@ -159,34 +175,47 @@ void MainWindow::autoDetectGames() {
                 found = true;
             }
         }
-#if defined (_WIN32)
         if (!found) {
             if (strcmp(gameRecord.registryKeyFullname, "") != 0) {
-                QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
-                if (gameLocationFromRegistry.isEmpty()) {
-                    if (!lastKnownLocation.isEmpty()) {
-                        detectedGames.remove(gameRecord.processName);
-                    }
-                }
-                else {
-                    if (!gameLocationFromRegistry.endsWith(".exe")) {
-                        if (!gameLocationFromRegistry.endsWith("\\")) {
-                            gameLocationFromRegistry.append("\\");
+                QString installationDirectory;
+                if (gameRecord.registryKeyFullname[0] != '/' && gameRecord.registryKeyFullname[0] != '~') {  // as for Linux games are used default absolute installation paths for game-detection and they are always starting with '/' or '~', they shouldn't be checked in the registry
+#if defined (_WIN32)
+                    installationDirectory = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
+                    if (installationDirectory.isEmpty()) {
+                        if (!lastKnownLocation.isEmpty()) {
+                            detectedGames.remove(gameRecord.processName);
                         }
                     }
                     else {
-                        gameLocationFromRegistry.resize(gameLocationFromRegistry.lastIndexOf('\\') + 1);
+                        if (!installationDirectory.endsWith(".exe")) {
+                            if (!installationDirectory.endsWith("\\")) {
+                                installationDirectory.append("\\");
+                            }
+                        }
+                        else {
+                            installationDirectory.resize(installationDirectory.lastIndexOf('\\') + 1);
+                        }
                     }
-                    if (QFile::exists(gameLocationFromRegistry + gameRecord.processName)) {
-                        strcpy(gamePath.processName, gameRecord.processName);
-                        strcpy(gamePath.path, gameLocationFromRegistry.toStdString().c_str());
-                        strcpy(gamePath.customExecutableParameters, "");
-                        detectedGames.insert(gameRecord.processName, gamePath);
+#endif
+                }
+                else {
+#if defined (__linux__)
+                    if (QString(gameRecord.registryKeyFullname).endsWith('/')) {
+                        installationDirectory = gameRecord.registryKeyFullname;
                     }
+                    else {
+                        installationDirectory = QString(gameRecord.registryKeyFullname) + "/";
+                    }
+#endif
+                }
+                if (QFile::exists(installationDirectory + gameRecord.processName)) {
+                    strcpy(gamePath.processName, gameRecord.processName);
+                    strcpy(gamePath.path, installationDirectory.toStdString().c_str());
+                    strcpy(gamePath.customExecutableParameters, "");
+                    detectedGames.insert(gameRecord.processName, gamePath);
                 }
             }
         }
-#endif
     }
     fileMyGames.open("gamepath.dat", std::ios::out | std::ios::binary);
     for (tPath pathRecord : detectedGames) {
@@ -1005,7 +1034,7 @@ void MainWindow::startProgram (const char* progName, const tGames& gameRecord, c
     }
 #endif
 
-    if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"\0")!=0) {   //if in this function are passed ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
+    if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"")!=0) {   //if in this function are passed ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
         command += " " + launchArguments.replace("%%exe%%", progName).replace("%%ip%%", ip).replace("%%port%%", port);
     }
     else {

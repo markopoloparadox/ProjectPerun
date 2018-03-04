@@ -84,7 +84,7 @@ const char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detecte
         return NULL;        //none game was found
     }
     else {
-        return !system(("ps --no-headers -p $(pidof " + QString(previousProcessName) + ")").toStdString().c_str()) ? previousProcessName : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'processName' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
+        return !system(("ps --no-headers -p $(pidof " + QString(previousProcessName) + ")").toStdString().c_str()) ? previousProcessName : "";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'processName' is still active ; otherwise we return "" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
     }
 #endif
 }
@@ -265,7 +265,7 @@ const char* foundGameserverAddress(const char* gameprocessName) {  //XML file wi
     }
     searchedOne[j*2] = searchedOne[j*2+1] = '.';    //because after each process name there are also 2 another dots (probably because there was NullString which was encoded to dot)
     searchedOne[j*2+2] = '\0';
-    strcat(searchedOne,"</asString>\0");    //and then text that represent XML element in which is contained
+    strcat(searchedOne,"</asString>");    //and then text that represent XML element in which is contained
     char gameProcessasString[200];
     strcpy(gameProcessasString,searchedOne);   //gameProcessasString is required in case that address found for played game is not valid, so we need to search again for next appearence of that (game) process
     searchedOneStrLen = strlen(searchedOne)-1;        //length of text which represents process name in encoded format (decreased by one, so we don't to decrease it later every time in loop (because last character of string is on (N-1)th position))
@@ -303,7 +303,7 @@ const char* foundGameserverAddress(const char* gameprocessName) {  //XML file wi
         }
         if (j==-1) {    //if we found the string we are seaching for (we were comparing each character in file and each was the same (as one in string variable with text we are looking for)
             if (type==0) {      //check if we are currently looking for process (game) name
-                strcpy(searchedOne,"</remotePort>\0");      //set new goal - to find port of game server on which we are playing
+                strcpy(searchedOne,"</remotePort>");      //set new goal - to find port of game server on which we are playing
                 searchedOneStrLen = strlen(searchedOne)-1;  //save also string length of "</remotePort>"
                 type = 1;   //set that we are now looking for port number (not process name anymore)
             }
@@ -319,7 +319,7 @@ const char* foundGameserverAddress(const char* gameprocessName) {  //XML file wi
                     port[l] = tmp[k-1-l];   //put last character on first place (because 'tmp' array was in reversed order
                 }
                 port[k] = '\0';     //set NullString at the end what represents end of string
-                strcpy(searchedOne,"</remoteV4Address>\0");     //next we need to find IP address of game server we are playing on
+                strcpy(searchedOne,"</remoteV4Address>");     //next we need to find IP address of game server we are playing on
                 searchedOneStrLen = strlen(searchedOne)-1;      //and save also length of "</remoteV4Address>"
                 type = 2;   //set that we are now looking for IPv4 address (not port number anymore)
             }
@@ -337,8 +337,8 @@ const char* foundGameserverAddress(const char* gameprocessName) {  //XML file wi
                 ipAddress[k] = '\0';      //set NullString at the end what represents end of string
 
                 bool addressIsLocal = false;     //assume that found address is not local
-                char privateAddresses[3][10] = { "192.168.\0" , "127.\0" , "10.\0" };      //list of local addresses (those can't exist on Internet)
-                for (short l = 0 ; l<3 ; l++) {     //iterate through all private addresses
+                char privateAddresses[4][10] = { "192.168." , "127." , "10." , "0." };      //list of local addresses (those can't exist on Internet) - 0.0.0.0 is valid, but it cannot be used as private nor public address (states in RFC3330)
+                for (short l = 0 ; l<4 ; l++) {     //iterate through all private addresses
                     unsigned int m;
                     for (m = 0 ; m<strlen(privateAddresses[l]) && ipAddress[m]==privateAddresses[l][m] ; m++ ) {    //iterate through each character of private address and compare it with found address
                         ;       //do nothing specific
@@ -349,7 +349,7 @@ const char* foundGameserverAddress(const char* gameprocessName) {  //XML file wi
                     }
                 }
                 if (!addressIsLocal) {     //if we still treat found IP address as public, check if it is maybe in range 172.16.0.0 - 172.31.255.255
-                    char complexPrivateAddress[6] = "172.\0";     //that's the beginning of that type of private address
+                    char complexPrivateAddress[6] = "172.";     //that's the beginning of that type of private address
                     short l;
                     for (l = 0 ; l<3 && complexPrivateAddress[l]==ipAddress[l] ; l++) {     //check how many characters does found address and this private address have in common
                         ;

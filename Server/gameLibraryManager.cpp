@@ -22,7 +22,7 @@ void listAllRecords () {
 			 << "\tProcess Name: " << record.processName << endl
 			 << "\tFull Name: " << record.fullName << endl
 			 << "\tCommand Line Arguments for joining server: " << record.multiplayerCommandLineArguments << endl
-			 << "\tRegistry Name: " << record.registryName << endl;
+			 << "\tPath of registry key containing installation directory (Win-apps) or default path (Linux-apps): " << record.registryName << endl;
 	}
 	file.close();
 	file.clear();
@@ -65,7 +65,7 @@ void addNewRecord () {
 		 << "set %%port%% on position where normally is port of remote gameserver" << endl
 		 << ": ";
 	cin.getline(record.multiplayerCommandLineArguments,100);
-	cout << "Enter registry name that contains path to executable: " << endl;
+	cout << "Enter path of registry key containing installation directory (Win-apps) or default path (Linux-apps): " << endl;
 	cin.getline(record.registryName,250);
 	fstream file;
 	file.open("gameslist.dat",ios::out | ios::in | ios::binary);
@@ -128,7 +128,7 @@ void editExistingRecord () {
 		 << "set %%port%% on position where normally is port of remote gameserver" << endl
 		 << ": ";
 	cin.getline(record.multiplayerCommandLineArguments,100);
-	cout << "Enter new registry name that contains path to executable: " << endl;
+	cout << "Enter path of registry key containing installation directory (Win-apps) or default path (Linux-apps): " << endl;
 	cin.getline(record.registryName,250);
 	fstream file;
 	file.open("gameslist.dat",ios::in | ios::out | ios::binary);
