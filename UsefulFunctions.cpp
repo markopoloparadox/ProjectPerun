@@ -42,7 +42,7 @@ QString convertSecondsToHmsFormat(double durationDouble)
   return QString("%1h:%2min:%3s").arg( QString::number(hours) ).arg( QString::number(minutes).rightJustified(2,'0') ).arg( QString::number(seconds).rightJustified(2,'0') );
 }
 
-char* stringToLowerCase(char* string) {
+const char* stringToLowerCase(const char* string) {
     char* tmp = new char [50];
     int i;
     for (i=0 ; string[i]!='\0' ; i++) {

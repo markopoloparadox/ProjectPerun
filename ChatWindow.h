@@ -20,7 +20,7 @@ class ChatWindow : public QMainWindow
 
 public:
     explicit ChatWindow(QJsonObject object, QTcpSocket *socket, QString name, QWidget *parent = 0, bool isGroupChat = false);
-    ChatWindow::ChatWindow(QTcpSocket *socket, QString name, QWidget *parent, bool isGroupChat = false);
+    ChatWindow(QTcpSocket *socket, QString name, QWidget *parent, bool isGroupChat = false);
     ~ChatWindow();
     QString chatId;
     void update(QJsonObject object);

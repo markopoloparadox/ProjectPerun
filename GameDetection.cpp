@@ -3,9 +3,15 @@
 #include <QProcess>
 
 #if defined (_WIN32)
-char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames, char* processName) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
+void sleep(int seconds) {
+    Sleep(seconds * 1000);
+}
+#endif
+
+const char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames, const char* previousProcessName) {  //background...does not necessarily mean that wanted process is minimized/inactive (this function is searching through all processes that are running)
+#if defined (_WIN32)
     bool gameSpecified = true;
-    if (processName==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
+    if (previousProcessName==NULL) {       //if NULL value is forwarded in function, that means that there isn't even assumption about process that might be running
         gameSpecified = false;         //so we are setting that game is specified - we need to find it out in this function call
     }
     bool found = false;
@@ -15,7 +21,7 @@ char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames
         PROCESSENTRY32 pe32 = {0};
         pe32.dwSize = sizeof(pe32);
 
-        if(::Process32First(hSnapshot, &pe32)) {
+        if(Process32First(hSnapshot, &pe32)) {
             while (true) {      //read active processes and check if any of them satisfies condition
                 char tmp[50];
                 std::wcstombs(tmp,pe32.szExeFile,50);    //converts process name which is in UTF-16 Windows format into 8-bit ASCII and store it into process_name
@@ -28,14 +34,14 @@ char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames
                     if( detectedGames.contains(tmp) ) {  //Check if currently observed process is game which is supported
                         //Looks like some game is running!
                         found = true;
-                        processName = new char [50];
+                        char* processName = new char [50];
                         strcpy(processName,tmp);
-                        //We're done...
+                        previousProcessName = processName;  // this is done in order to call CloseHandle function after while loop
                         break;
                     }
                 }
                 else {
-                    if (strcmp(tmp,processName)==0) {
+                    if (strcmp(tmp,previousProcessName)==0) {
                         found = true;
                         break;
                     }
@@ -51,7 +57,7 @@ char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames
     }
 
     if (found) {
-        return processName;
+        return previousProcessName;
     }
     else {
         if (gameSpecified) {     //if user exited game that he was playing till now
@@ -61,32 +67,27 @@ char* getNameOfGameRunningInBackground(const QMap<QString, tPath>& detectedGames
             return NULL;        //none game is found
         }
     }
-}
-
-void sleep(int seconds) {
-    Sleep(seconds * 1000);
-}
-#endif
-
-#if defined (__linux__)
-char* getNameOfGameRunningInBackground(QMap<QString, tPath>& detectedGames, char* previousProcessName) {
+#elif defined (__linux__)
     if (previousProcessName==NULL) {       //if we haven't specified name of game for which we are checking its existence (i.e. if we want to find if there is any active game currently running)
         QProcess process;
-        process.start("ps -aux --no-headers | awk '{print $11}' | grep -E -o '[^/]+?$'");
+        process.start("bash", QStringList() << "-c" << "ps -aux --no-headers | awk '{print $11}' | grep -E -o '[^/]+?$'");
         process.waitForFinished(-1);
         QString output(process.readAllStandardOutput());
+
         for (QString processName : output.split(QRegularExpression{R"-((\r\n?|\n))-"})) {
             if (detectedGames.contains(processName)) {
-                return processName.str().c_str();
+                char* output = new char[50];
+                strcpy(output, processName.toStdString().c_str());
+                return output;
             }
         }
         return NULL;        //none game was found
     }
     else {
-        return !system(QString("ps --no-headers -p $(pidof " + previousProcessName + ")").str().c_str()) ? previousProcessName : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'processName' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
+        return !system(("ps --no-headers -p $(pidof " + QString(previousProcessName) + ")").toStdString().c_str()) ? previousProcessName : "\0";    //system(char*) returns 0 (i.e. false) if command has run successfully - we are returning back process name if process with name of content of variable 'processName' is still active ; otherwise we return "\0" (return NULL pointer would cause crash because strcmp(const char*,const char*) is expecting pointer to character array that really leads to some location (NULL is not location where something can be stored)
     }
-}
 #endif
+}
 
 /*bool isStillActive (const char* processName) {
     std::stringstream command, output;
@@ -239,8 +240,8 @@ char* getNameOfGameRunningInBackground(QMap<QString, tPath>& detectedGames, char
     }
 }*/
 
+const char* foundGameserverAddress(const char* gameprocessName) {  //XML file with network traffic is read from END to beginning
 #if defined (_WIN32)
-char* foundGameserverAddress(char* gameprocessName) {  //XML file with network traffic is read from END to beginning
     gameprocessName = stringToLowerCase(gameprocessName);         //distributions of Windows operating system make no difference between uppercase and lowercase strings, so all strings are transformed into lowercase (also, names of processes in generated XML file after tracing network traffic are represented in lowercase, so that's the reason why we are performing trasformation here)
     //startPacketTracing();     //first we need to track network packets and generate required XML file - meanwhile network tracking is done by separate process which is run at application start-up
     int numOfTabs = 0;  //number of tab spaces which are set next to each other - this will be used to indice end of section with relevant data
@@ -384,11 +385,7 @@ char* foundGameserverAddress(char* gameprocessName) {  //XML file with network t
         }
         i--;    //each time in loop we decrement position of character (because in each loop we read at least 1 character
     }
-}
-#endif
-
-#if defined (__linux__)
-char* foundGameserverAddress(char* gameprocess_name) {
+#elif defined (__linux__)
     //appropriate solution still isn't found!!!
-}
 #endif
+}

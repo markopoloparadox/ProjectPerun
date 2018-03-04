@@ -9,12 +9,14 @@ CONFIG += c++14
 QMAKE_CXXFLAGS += -std=c++0x -pthread
 LIBS += -pthread
 
-win32-g++:!contains(QMAKE_HOST.arch, x86_64) {
-    LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/user32.lib"
-    LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/Gdi32.lib"
-} else {
-    LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/x64/user32.lib"
-    LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/x64/Gdi32.lib"
+win32 {
+    win32-g++:!contains(QMAKE_HOST.arch, x86_64) {
+        LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/user32.lib"
+        LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/Gdi32.lib"
+    } else {
+        LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/x64/user32.lib"
+        LIBS += "C:/Program Files/Microsoft SDKs/Windows/v7.1/Lib/x64/Gdi32.lib"
+    }
 }
 # Project created by QtCreator 2015-12-05T15:24:26
 #

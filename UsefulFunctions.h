@@ -27,7 +27,7 @@ int binarySearchWrapper (std::fstream &file,const char* processName);
 
 QString convertSecondsToHmsFormat (double durationDouble);
 
-char* stringToLowerCase(char* string);
+const char* stringToLowerCase(const char* string);
 
 QString extractGameNameOnly (QString gameStatus);
 

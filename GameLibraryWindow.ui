@@ -229,6 +229,9 @@
            <property name="standardButtons">
             <set>QDialogButtonBox::Apply|QDialogButtonBox::Close</set>
            </property>
+           <property name="centerButtons">
+            <bool>true</bool>
+           </property>
           </widget>
          </item>
          <item>

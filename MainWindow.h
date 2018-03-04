@@ -80,7 +80,7 @@ private:
     bool adminMode;
     bool initialGamesListCheckingDone = false;
     static QMap<QString, tPath> detectedGames;
-    void sendNotificationMessage (short tID, const char* customStatus, char* playedGameName, char* gameserverInfo);
+    void sendNotificationMessage (short tID, const char* customStatus, const char* playedGameName, const char* gameserverInfo);
     void showGameStats (QJsonObject object);
     void handleNewChatMessage (QJsonObject message);
     void refreshFriendsList (QJsonObject message);
@@ -92,8 +92,10 @@ private:
     void autoDetectGames();
     void startProgram (const char* progName, const tGames& gameRecord, const char* ip=NULL, const char* port=NULL);
     void processFriendRequest(QString username);
+#if defined (_WIN32)
     static void handleHotkeys (void *arg);
     static HBITMAP getScreenBmp(HDC hdc);
+#endif
     static void listenGameActivity (void *arg);
 };
 

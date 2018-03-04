@@ -12,16 +12,16 @@
 
 #if defined (__linux__)
 #include <sys/stat.h>
-#endif
-
-#if defined (_WIN32)
+#elif defined (_WIN32)
 #include <windows.h>
 #include <tchar.h>
 #include <strsafe.h>
 #include <QSettings>
+#endif
 
 QMap<QString, tPath> MainWindow::detectedGames;
 
+#if defined (_WIN32)
 HBITMAP MainWindow::getScreenBmp(HDC hdc) {
     // Get screen dimensions
     int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
@@ -127,6 +127,7 @@ QString MainWindow::getFileLocationFromRegistryKey(QString registryKey) {
     }
     return "";
 }
+#endif
 
 void MainWindow::autoDetectGames() {
     tGames gameRecord;
@@ -158,6 +159,7 @@ void MainWindow::autoDetectGames() {
                 found = true;
             }
         }
+#if defined (_WIN32)
         if (!found) {
             if (strcmp(gameRecord.registryKeyFullname, "") != 0) {
                 QString gameLocationFromRegistry = this->getFileLocationFromRegistryKey(gameRecord.registryKeyFullname);
@@ -184,6 +186,7 @@ void MainWindow::autoDetectGames() {
                 }
             }
         }
+#endif
     }
     fileMyGames.open("gamepath.dat", std::ios::out | std::ios::binary);
     for (tPath pathRecord : detectedGames) {
@@ -192,7 +195,6 @@ void MainWindow::autoDetectGames() {
     fileMyGames.close();
     this->fileHandlingMutex.unlock();
 }
-#endif
 
 MainWindow::MainWindow(QTcpSocket *socket, bool adminMode, QString username, QWidget *parent) :
     QMainWindow(parent),
@@ -246,8 +248,9 @@ MainWindow::MainWindow(QTcpSocket *socket, bool adminMode, QString username, QWi
     this->ui->currentlyPlayingTBox->setFocus();
 
     this->gameActivityListenerThread = new std::thread(MainWindow::listenGameActivity, this);
-
+#if defined (_WIN32)
     this->globalShortcutListenerThread = new std::thread(MainWindow::handleHotkeys, this);
+#endif
 }
 
 MainWindow::~MainWindow(){      //destructor isn't called when form is closed because this form isn't called with Qt::WA_DeleteOnClose attribute
@@ -336,13 +339,13 @@ void MainWindow::listenGameActivity (void *arg) {    //my compiler does not not 
 
 void MainWindow::checkGameStatus()
 {
-    char *runningGame, *gameserverInfo;
+    const char* gameserverInfo;
     while (true) {
         gameserverInfo = NULL; //= new char [22];
 
         this->fileHandlingMutex.lock();
 
-        runningGame = getNameOfGameRunningInBackground(detectedGames);
+        const char* runningGame = getNameOfGameRunningInBackground(detectedGames);
 
         this->fileHandlingMutex.unlock();
 
@@ -358,7 +361,7 @@ void MainWindow::checkGameStatus()
         sleep(10);
         while (runningGame!=NULL && strcmp(getNameOfGameRunningInBackground(detectedGames, runningGame),runningGame)==0) {
             qDebug() << "igra radi";
-            char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
+            const char* tmp = NULL;   //if user isn't running application as administrator, then there is no need to execute function for seeking relevant IP address because current network traffic isn't in progress - so we are setting that (s)he isn't playing on any gameserver
             if (this->adminMode) {
                 tmp = foundGameserverAddress(runningGame);
             }
@@ -404,7 +407,7 @@ void MainWindow::checkGameStatus()
     }
 }
 
-void MainWindow::sendNotificationMessage (short tID, const char* customStatus=NULL, char* playedGameName=NULL, char* gameserverInfo=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
+void MainWindow::sendNotificationMessage (short tID, const char* customStatus=NULL, const char* playedGameName=NULL, const char* gameserverInfo=NULL) {  //notifies friends that you have started playing some game (or you stopped playing) XOR you have changed your custom status (note on exlusive or because function is separately called when user changed custom status and when his/her game status was changed
 /*    if (customStatus==NULL && playedGameName==NULL && gameserverInfo==NULL) {   //if we haven't changed custom status and are not playing on any game
         if (this->currentGame == "") {     //if we haven't also played anything 10 seconds before - we don't need to notify others that we are not playing anything because they already know that
             return;
@@ -692,7 +695,7 @@ void MainWindow::onTcpMessageReceived() {
         packet += fragment;
 
         int fragmentSize = fragment.size();
-        byte numOfConsecutiveEscapeChars = 0;
+        ushort numOfConsecutiveEscapeChars = 0;
         char currChar;
         for (int i=0; i<fragmentSize; i++) {
             currChar = fragment.at(i);
@@ -930,7 +933,7 @@ void MainWindow::checkIfNewerGamesListExist() {
     }
     file.close();
 
-    std::stringstream datetime;
+    QString datetime;
 
     if (size!=0) {
 
@@ -958,29 +961,27 @@ void MainWindow::checkIfNewerGamesListExist() {
             stUTC.wHour, stUTC.wMinute, stUTC.wSecond);
         char tmp[25];
         wcstombs(tmp,szBuf,sizeof(tmp));
-        datetime << tmp;
+        datetime = tmp;
         CloseHandle(hFile);
 
-#endif
-
-#if defined (__linux__)
+#elif defined (__linux__)
         struct tm* clock;               // create a time structure
         struct stat attrib;             // create a file attribute structure
         stat("gameslist.dat", &attrib);     // get the attributes of file gameslist.dat
         clock = gmtime(&(attrib.st_mtime));     //transform date of last modification time from Local Time Zone to GMT Time Zone
-        datetime << QString::number(clock->tm_year).rightJustified(4,'0') << "-" << QString::number(clock->tm_mon+1).rightJustified(2,'0') << "-" << QString::number(clock->tm_mday).rightJustified(2,'0') << "T" << QString::number(clock->tm_hour).rightJustified(2,'0') << ":" << QString::number(clock->tm_min).rightJustified(2,'0') << ":" << QString::number(clock->tm_sec).rightJustified(2,'0');   //concatenate date and time elements into string in valid format (US format)
+        datetime = QString::number(clock->tm_year+1900).rightJustified(4,'0') + "-" + QString::number(clock->tm_mon+1).rightJustified(2,'0') + "-" + QString::number(clock->tm_mday).rightJustified(2,'0') + "T" + QString::number(clock->tm_hour).rightJustified(2,'0') + ":" + QString::number(clock->tm_min).rightJustified(2,'0') + ":" + QString::number(clock->tm_sec).rightJustified(2,'0');   //concatenate date and time elements into string in valid format (US format)
 #endif
 
     }
     else {
-        datetime << "1990";
+        datetime = "1990";
     }
     this->fileHandlingMutex.unlock();
 
     QJsonObject user;
     user["connection"] = "0018";
     user["size"] = size;
-    user["datetime"] = datetime.str().c_str();  //if there is no file yet, then datetime of last modification is undefined and very old date is sent
+    user["datetime"] = datetime.toStdString().c_str();  //if there is no file yet, then datetime of last modification is undefined and very old date is sent
 
     QJsonDocument object(user);
     QByteArray packet = (object.toJson(QJsonDocument::Compact));
@@ -991,29 +992,43 @@ void MainWindow::checkIfNewerGamesListExist() {
 }
 
 void MainWindow::startProgram (const char* progName, const tGames& gameRecord, const char* ip, const char* port) {    //start game which server flagged as supported (in gameslist.dat file) and which path is defined (in gamepath.dat file)
-    std::stringstream command;
+    QString command = "";
     tPath pathRecord = detectedGames[progName];
 
     QString launchArguments = gameRecord.multiplayerCommandLineArguments;
 #if defined (_WIN32)
-    command << "cd /d \"" << pathRecord.path << "\" && " << "start ";
+    command += "cd /d \"" + QString(pathRecord.path) + "\" && start ";
+#elif defined (__linux__)
+    command += "cd \"" + QString(pathRecord.path) + "\";";
+    if (QString(progName).endsWith(".exe")) {
+        command += "wine ";
+    }
 #endif
 
     if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"\0")!=0) {   //if in this function are passed ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
-        launchArguments = launchArguments.replace("%%exe%%", progName);
-        launchArguments = launchArguments.replace("%%ip%%", ip);
-        launchArguments = launchArguments.replace("%%port%%", port);
-        command << " " << launchArguments.toStdString().c_str();
+        command += " " + launchArguments.replace("%%exe%%", progName).replace("%%ip%%", ip).replace("%%port%%", port);
     }
     else {
-        command << progName;
+        command += progName;
     }
-    command << " " << pathRecord.customExecutableParameters;
 
-    QProcess process;
 #if defined (__linux__)
-    process.startDetached(QString::fromStdString(command.str());  //executing
+    QRegularExpressionMatchIterator iterator = QRegularExpression("\"[^\"]*\"|(\\S+)").globalMatch(QString(pathRecord.customExecutableParameters));
+    QStringList paramList;
+    while (iterator.hasNext()) {
+        QRegularExpressionMatch match = iterator.next();
+        if (match.captured(1).isEmpty()) {
+            paramList << match.captured();
+        }
+        else {
+            paramList << match.captured().replace(QRegularExpression("([\\^&|<>\'])"), "\\\\1");
+        }
+    }
+    command += " " + paramList.join(" ");
+    system((command + " &").toStdString().c_str()); // this application would become unstable/unresponsive if game wouldn't be run in "background", i.e. if terminal would wait until it finishes
 #elif defined (_WIN32)
-    process.startDetached("cmd /c \"" + QString(command.str().c_str()) + "\"");
+    command += " " + QString(pathRecord.customExecutableParameters).replace(QRegularExpression("([\\^&|<>])"), "^\\1");
+    QProcess process;
+    process.startDetached("cmd /c \"" + command + "\"");    // on Windows operating system Command Prompt window would pop-up if the command would be called with system(str) function, so this is workaround
 #endif
 }
