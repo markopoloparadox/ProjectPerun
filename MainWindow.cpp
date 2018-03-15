@@ -1025,17 +1025,23 @@ void MainWindow::startProgram (const char* progName, const tGames& gameRecord, c
     tPath pathRecord = detectedGames[progName];
 
     QString launchArguments = gameRecord.multiplayerCommandLineArguments;
+    bool linuxWineGame = false;
 #if defined (_WIN32)
     command += "cd /d \"" + QString(pathRecord.path) + "\" && start ";
 #elif defined (__linux__)
     command += "cd \"" + QString(pathRecord.path) + "\";";
     if (QString(progName).endsWith(".exe")) {
         command += "wine ";
+        linuxWineGame = true;
     }
 #endif
 
     if (ip!=NULL && strcmp(gameRecord.multiplayerCommandLineArguments,"")!=0) {   //if in this function are passed ip address and port of some remote server and if there exists a way to join specific gameserver in game directly via command line
-        command += " " + launchArguments.replace("%%exe%%", progName).replace("%%ip%%", ip).replace("%%port%%", port);
+        QString commandPart = launchArguments.replace("%%exe%%", progName).replace("%%ip%%", ip).replace("%%port%%", port);
+        if (linuxWineGame) {
+            commandPart.replace(';', "\\;");
+        }
+        command += commandPart;
     }
     else {
         command += progName;
@@ -1047,7 +1053,12 @@ void MainWindow::startProgram (const char* progName, const tGames& gameRecord, c
     while (iterator.hasNext()) {
         QRegularExpressionMatch match = iterator.next();
         if (match.captured(1).isEmpty()) {
-            paramList << match.captured();
+            if (linuxWineGame) {
+                paramList << match.captured().replace(';', "\\;");
+            }
+            else {
+                paramList << match.captured();
+            }
         }
         else {
             paramList << match.captured().replace(QRegularExpression("([\\^&|<>\'])"), "\\\\1");
