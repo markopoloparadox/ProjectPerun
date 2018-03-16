@@ -680,9 +680,14 @@ void MainWindow::on_instantChatButton_clicked()
         msgbox.exec();
         return;
     }
-    ChatWindow* chatbox = new ChatWindow(this->socket, username, this);
-    this->privateChatMap.insert(username, chatbox);
-    chatbox->show();
+    if (this->privateChatMap.contains(username)) {
+        this->privateChatMap[username]->show();
+    }
+    else {
+        ChatWindow* chatbox = new ChatWindow(this->socket, username, this);
+        this->privateChatMap.insert(username, chatbox);
+        chatbox->show();
+    }
 }
 
 void MainWindow::on_actionDisconnect_triggered()
