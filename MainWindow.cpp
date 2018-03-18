@@ -327,8 +327,11 @@ void MainWindow::getFriendsList(QJsonObject message){
     }
 
     QJsonArray friendRequests = message.value("friend_requests").toArray();
-    for (int i = 0; i < friendRequests.count(); i++) {
-        this->processFriendRequest(friendRequests[i].toString());
+    if (!friendRequests.isEmpty()) {
+        this->snd->setObjectName("message");
+        for (QJsonValue friendRequest : friendRequests) {
+            this->processFriendRequest(friendRequest.toString());
+        }
     }
 }
 
@@ -795,6 +798,7 @@ void MainWindow::onTcpMessageReceived() {
                 this->refreshFriendsList(object);
                 break;
             case 17:
+                this->snd->setObjectName("message");
                 this->processFriendRequest(object["email"].toString());
                 break;
             case 19:
