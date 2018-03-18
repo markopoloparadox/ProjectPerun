@@ -136,8 +136,10 @@ QString MainWindow::getFileLocationFromRegistryKey(QString registryKey) {
             }
             if (settings != NULL) {
                 QString value = settings->value(keyname.isEmpty() ? "Default" : keyname).toString();
-                delete settings;
-                return value;
+                if (!value.isEmpty()) {
+                    delete settings;
+                    return value;
+                }
             }
         }
     }
@@ -532,9 +534,11 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
             break;
         }
         if (strcmp( item->text().toUtf8() , recordGame.fullName )==0) {
-            this->fileHandlingMutex.unlock();
-            this->startProgram(recordGame.processName, recordGame, NULL, NULL);
-            return;
+            if (detectedGames.contains(recordGame.processName)) {
+                this->fileHandlingMutex.unlock();
+                this->startProgram(recordGame.processName, recordGame, NULL, NULL);
+                return;
+            }
         }
     }
     file.close();
@@ -822,7 +826,7 @@ void MainWindow::onTcpMessageReceived() {
                     this->refreshGamesList();
                     this->gameLibWin->fillTable();
                     QMessageBox msgBox;
-                    msgBox.setText("Newer version of list of supported games has been found and received!");
+                    msgBox.setText("Newer version of list of supported games has been found and successfully downloaded!");
                     msgBox.exec();
                 }
                 break;
