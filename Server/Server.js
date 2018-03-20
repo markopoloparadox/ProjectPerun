@@ -128,19 +128,19 @@ function createChat(chatParticipants, socket) {
 }
 
 function readDatabase() {
-	var stat1 = fs.statSync(__dirname + "/BazaKorisnika.json");
+	var stat1 = fs.statSync(__dirname + "/UserList.json");
 	if (stat1.size === 0) {	//in case that file is totally empty (it doesn't even contain '[]')
 		return [];
 	}
 
-    var TextFromFile = fs.readFileSync(__dirname + "/BazaKorisnika.json", "utf8");
+    var TextFromFile = fs.readFileSync(__dirname + "/UserList.json", "utf8");
     var users = JSON.parse(TextFromFile);
     return users;
 }
 
 function writeToDatabase(users) {
     users = JSON.stringify(users);
-    fs.writeFile(__dirname + "/BazaKorisnika.json", users, function (err) {
+    fs.writeFile(__dirname + "/UserList.json", users, function (err) {
         if (err) return console.log(err);
     });
 }
@@ -653,5 +653,5 @@ server.listen(serverPort, serverAddress);
 console.log("Server is now listening for requests on the following address and port: " + serverAddress + ":" + serverPort);
 
 fs.appendFileSync(__dirname + "/GameActivity.json","");	//creates file in which will be stored game statistics (if it does not exists)
-fs.appendFileSync(__dirname + "/BazaKorisnika.json","");	//creates file in which will be stored list of users and their basic info (if it does not exists)
+fs.appendFileSync(__dirname + "/UserList.json","");	//creates file in which will be stored list of users and their basic info (if it does not exists)
 fs.appendFileSync(__dirname + "/gameslist.dat","");		//creates file in which will be stored game info which will be sent to users (if it does not exists)
