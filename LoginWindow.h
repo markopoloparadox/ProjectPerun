@@ -18,7 +18,7 @@ class LoginWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit LoginWindow(bool adminMode, QWidget *parent = 0);
+    explicit LoginWindow(bool adminMode, const char* const serverAddress, const short serverPort, QWidget *parent = 0);
     ~LoginWindow();
 
 private slots:
@@ -30,8 +30,8 @@ private:
     Ui::LoginWindow *ui;
     QTcpSocket* socket;
     bool adminMode;
-    const char* const serverAddress = "165.227.174.7";
-    const ushort serverPort = 1337;
+    const char* const serverAddress;
+    const ushort serverPort;
 };
 
 #endif // LOGINWINDOW_H

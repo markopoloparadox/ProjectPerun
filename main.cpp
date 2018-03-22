@@ -5,6 +5,7 @@
 #include "LoginWindow.h"
 #include <QApplication>
 #include <QProcess>
+#include <iostream>
 #include <fstream>
 #define LOCKFILE "lock.dat"
 
@@ -55,6 +56,36 @@ int main(int argc, char *argv[])
 {
     QApplication::addLibraryPath(".");
     bool adminMode = isRunningAsAdministrator();
+    const char* serverAddress = "165.227.174.7";
+    short serverPort = 1337;
+    if (argc % 2 == 1) {
+        for (int i=1; i<argc; i+=2) {
+            const char* const key = argv[i];
+            const char* const value = argv[i+1];
+            if (strcmp(key, "-a")==0 || strcmp(key, "--address")==0) {
+                serverAddress = value;
+            }
+            else if (strcmp(key, "-p")==0 || strcmp(key, "--port")==0) {
+                serverPort = QString(value).toShort();
+            }
+            else {
+                std::cout << "Invalid option has been passed: " << key << std::endl;
+                return 0;
+            }
+        }
+    }
+    else {
+        const char* const key = argv[1];
+        if (argc == 2 && (strcmp(key, "-h")==0 || strcmp(key, "--help")==0)) {
+            std::cout << "Available options:" << std::endl
+                << "\t{-a | --address} SERVER_ADDRESS - IP address of machine where the server-side application is listening (default: " << serverAddress << ")" << std::endl
+                << "\t{-p | --port} SERVER_PORT - number of port on which the server-side application is listening (default: " << serverPort << ")" << std::endl;
+        }
+        else {
+            std::cout << "Arguments have been passed in invalid format! Launch program with -h or --help argument to list all available options" << std::endl;
+        }
+        return 0;
+    }
 
     if (adminMode) {
         std::fstream file;
@@ -101,7 +132,7 @@ int main(int argc, char *argv[])
     short exitStatus;
     do {
         QApplication a(argc, argv);
-        LoginWindow w(adminMode);   //we are sending information about having administrative privileges to constructor of first form which will be opened
+        LoginWindow w(adminMode, serverAddress, serverPort);   //we are sending information about having administrative privileges to constructor of first form which will be opened
         //w.setAttribute(Qt::WA_DeleteOnClose);      //this will call destructors of all classes which were closed manually or which were closed by parent class (child class needs to have pointer to parent class forwarded in its constructor in that case)
         w.show();
         exitStatus = a.exec();

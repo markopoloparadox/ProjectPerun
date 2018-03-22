@@ -3,10 +3,12 @@
 #include <QMessageBox>
 
 
-LoginWindow::LoginWindow(bool adminMode, QWidget *parent) :
+LoginWindow::LoginWindow(bool adminMode, const char* const serverAddress, const short serverPort, QWidget *parent) :
     QMainWindow(parent),
     socket(new QTcpSocket()),
     adminMode(adminMode),    //value of adminMode as a parameter (that was sent from main() function) is set to adminMode attribute of LoginWindow (that's required because it will be forwarded next to instance of MainWindow class)
+    serverAddress(serverAddress),
+    serverPort(serverPort),
     ui(new Ui::LoginWindow)
 {
     this->ui->setupUi(this);
